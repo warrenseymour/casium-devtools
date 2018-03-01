@@ -1,7 +1,10 @@
-import { app, BrowserWindow } from 'electron';
+import { app, BrowserWindow, ipcMain } from 'electron';
 import { resolve } from 'path';
 
-let mainWindow: BrowserWindow | undefined;
+import { Server } from './server';
+
+let mainWindow: BrowserWindow;
+let server: Server;
 
 if (process.env.NODE_ENV === 'development') {
   require('electron-reload')(__dirname);
@@ -12,10 +15,25 @@ app.on('ready', () => {
   mainWindow.loadURL(`file://${__dirname}/panel.html`);
 
   mainWindow.on('closed', () => {
-    mainWindow = undefined;
+    server.stop();
+    (mainWindow as any) = undefined;
+  });
+
+  server = new Server({
+    onMessage: data => {
+      mainWindow.webContents.send('bus-message', data);
+    },
+    onConnect: () => {
+      mainWindow.webContents.send('bus-ready');
+    }
   })
+
+  ipcMain.on('bus-message', (event: any, data: {}) => {
+    server.send(data);
+  });
 });
 
 app.on('window-all-closed', () => {
+  server.stop();
   app.quit();
 });

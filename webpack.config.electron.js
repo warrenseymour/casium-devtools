@@ -7,6 +7,7 @@ module.exports = merge(config, {
   target: 'electron-renderer',
 
   entry: {
+    messaging: './src/electron/messaging.ts',
     panel: './src/common/panel.ts'
   },
 

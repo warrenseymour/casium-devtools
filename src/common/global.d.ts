@@ -1,10 +1,10 @@
 import { runtime } from 'chrome';
 
-import { WebExtBus } from './messaging';
+import { Bus } from './message';
 
 declare global {
   interface Window {
-    MESSAGE_BUS: WebExtBus;
+    MESSAGE_BUS: Bus;
 
     PORTS: {
       [key: string]: runtime.Port

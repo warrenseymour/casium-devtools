@@ -32,6 +32,13 @@ export abstract class Bus {
     this._queue = [];
   }
 
+  protected _notifyClientReady() {
+    this.send({
+      from: 'CasiumDevToolsPageScript',
+      state: 'initialized'
+    })
+  }
+
   protected _receiveMessage(msg: Message) {
     this.listeners.length ?
       this.listeners.forEach(this._dispatchMessage(msg)) :

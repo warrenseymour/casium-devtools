@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "outDir": "./dist/electron",
+    "sourceMap": false
+  },
+  "files": [
+    "src/electron/main.ts",
+    "src/electron/server.ts"
+  ]
+}
