@@ -59,10 +59,10 @@ jobs:
             jq '.browser_action.default_icon = "icon.png"' manifest.json | sponge manifest.json
 
       - run:
-          name: Package Extension
+          name: Package Web Extension
           command: |
-            cd /root/workspace/dist
-            zip ../casium-devtools.zip *
+            cd /root/workspace/dist/web-ext
+            zip ../../casium-devtools.zip *
 
       - run:
           name: Publish to Chrome Store
