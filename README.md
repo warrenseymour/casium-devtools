@@ -5,7 +5,7 @@
 ## Installation & Development
 
  - `yarn deps`
- - `yarn build`, or `yarn watch`, to auto-reload on saved changes
+ - `yarn build`, or `yarn watch:web-ext`, to auto-reload on saved changes
 
 ### Chrome
 

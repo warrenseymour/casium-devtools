@@ -3,7 +3,7 @@ import { ObjectInspector } from 'react-inspector';
 import { unnest, identity, last, pluck } from 'ramda';
 import { diff } from 'json-diff';
 
-import { SerializedMessage, Command } from './messaging';
+import { Message, Command } from './message';
 import { DependencyTrace, runDependencyTrace } from './dependency-trace';
 import { nextState, deepPick } from './util';
 import { nodeRenderer, nodeMapper, diffNodeMapper } from './object-inspector';
@@ -13,7 +13,7 @@ import { MessageHeading } from './MessageHeading';
 import './MessageView.scss';
 
 interface Props {
-  selected: SerializedMessage[];
+  selected: Message[];
   showUnitTest?: boolean;
   showPrevState?: boolean;
   showDiffState?: boolean;
@@ -165,7 +165,7 @@ export class MessageView extends React.Component<Props, State> {
 
     const { selected } = this.props;
     const { prev } = selected[0];
-    const next = nextState(last(selected) as SerializedMessage);
+    const next = nextState(last(selected) as Message);
 
     const diffMap = diff(prev, next);
 
@@ -191,7 +191,7 @@ export class MessageView extends React.Component<Props, State> {
       return;
     }
 
-    const next = nextState(last(this.props.selected) as SerializedMessage);
+    const next = nextState(last(this.props.selected) as Message);
 
     return (
       <div className="next-state">
@@ -201,7 +201,7 @@ export class MessageView extends React.Component<Props, State> {
     );
   }
 
-  protected _updateDependencyTraces(enabled: boolean | undefined, selected: SerializedMessage[]) {
+  protected _updateDependencyTraces(enabled: boolean | undefined, selected: Message[]) {
     const traces = enabled ?
       Promise.all(selected.map(runDependencyTrace)) :
       Promise.resolve([]);
@@ -214,7 +214,7 @@ export class MessageView extends React.Component<Props, State> {
       });
   }
 
-  protected _updateUnitTest(messages: SerializedMessage[], traces: DependencyTrace[]) {
+  protected _updateUnitTest(messages: Message[], traces: DependencyTrace[]) {
     this.setState({
       unitTest: generateUnitTest(messages, traces)
     });

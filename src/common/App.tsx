@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as FontAwesome from 'react-fontawesome';
 import { concat, contains, equals, head, last, isNil, merge, slice, where } from 'ramda';
 
-import { SerializedMessage } from './messaging';
+import { Message } from '../common/message';
 import { download } from './util';
 import { MessageView } from './MessageView';
 
@@ -10,8 +10,8 @@ import 'font-awesome/scss/font-awesome.scss';
 import './App.scss';
 
 interface State {
-  messages: SerializedMessage[];
-  selected: SerializedMessage[];
+  messages: Message[];
+  selected: Message[];
 
   haltForReplay: boolean;
 
@@ -32,13 +32,13 @@ interface State {
  * Extend an existing message selection (`selected`) based on a list of all
  * messages (`messages`) and a newly selected message (`message`).
  */
-const extendSelection = (messages: SerializedMessage[], selected: SerializedMessage[], msg: SerializedMessage) => {
+const extendSelection = (messages: Message[], selected: Message[], msg: Message) => {
   if (!selected.length) {
     return [msg];
   }
 
   const msgIdx = messages.indexOf(msg);
-  const lastIdx = messages.indexOf(last(selected) as SerializedMessage);
+  const lastIdx = messages.indexOf(last(selected) as Message);
 
   if (msgIdx > lastIdx) {
     // Message is after end of selection; gather messages from last selected to message and append to selection
@@ -46,7 +46,7 @@ const extendSelection = (messages: SerializedMessage[], selected: SerializedMess
     return concat(selected, newMessages);
   }
 
-  const firstIdx = messages.indexOf(head(selected) as SerializedMessage);
+  const firstIdx = messages.indexOf(head(selected) as Message);
 
   if (msgIdx < firstIdx) {
     // Message is before start of selection; gather messages from message to first selected and prepend to selection

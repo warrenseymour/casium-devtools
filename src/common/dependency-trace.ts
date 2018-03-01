@@ -1,4 +1,4 @@
-import { SerializedMessage } from "./messaging";
+import { Message } from './message';
 
 export interface DependencyTrace {
   model: string[][];
@@ -106,7 +106,7 @@ export const dependencyTrace = (context: string, name: string, model: {}, messag
  * given so that the evaluated code can be viewed and debugged in 'Sources' pane
  * of the *inspected* application.
  */
-export const runDependencyTrace = (msg: SerializedMessage) => {
+export const runDependencyTrace = (msg: Message) => {
   const evalString = `(${dependencyTrace.toString()})(` +
     `'${msg.context}', ` +
     `'${msg.message}', ` +

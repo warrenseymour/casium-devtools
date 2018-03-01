@@ -8,38 +8,25 @@
 //   tabId: [Automatically added]
 // }
 
+import { Message, Command } from '../common/message';
+
 export type Command = [string, {}];
 
-export interface SerializedMessage {
-  id: string;
-  name: string;
-  context: string;
-  ts: number;
-  prev: any;
-  next: any;
-  from: string;
-  relay: any;
-  message: string;
-  data: any;
-  path: string[];
-  commands?: Command[];
-}
-
-export type Listener = (msg: SerializedMessage) => any;
+export type Listener = (msg: Message) => any;
 
 (function createChannel() {
 
   window.MESSAGES = [];
   window.LISTENERS = []
 
-  let queue: SerializedMessage[] = [];
+  let queue: Message[] = [];
 
   window.FLUSH_QUEUE = () => {
     queue.forEach(msg => window.LISTENERS.forEach(processMsg(msg)));
     queue = [];
   };
 
-  const processMsg = (msg: SerializedMessage) =>
+  const processMsg = (msg: Message) =>
     ([predicate, ...listeners]: Listener[]) => predicate(msg) && listeners.map(l => l(msg));
 
   const backgroundPageConnection = browser.runtime.connect(undefined, { name: 'CasiumDevToolsPanel' });

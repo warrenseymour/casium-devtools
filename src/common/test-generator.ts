@@ -1,11 +1,11 @@
 import * as hjson from 'hjson';
 import { any, head, keys, last, lensPath, set } from 'ramda';
 
-import { SerializedMessage, Command } from './messaging';
+import { Message, Command } from './message';
 import { DependencyTrace } from './dependency-trace';
 import { deepPick } from './util';
 
-export type MessageTracePair = [SerializedMessage, DependencyTrace | undefined];
+export type MessageTracePair = [Message, DependencyTrace | undefined];
 
 const FORMATTING_OPTIONS: hjson.SerializeOptions = {
   condense: 80,
@@ -104,7 +104,7 @@ const expectCommands = (pairs: MessageTracePair[]) => {
   ] : [];
 }
 
-export const generateUnitTest = (messages: SerializedMessage[], traces: DependencyTrace[]) => {
+export const generateUnitTest = (messages: Message[], traces: DependencyTrace[]) => {
   const pairs = messages.map((message, index) => ([message, traces[index]])) as MessageTracePair[];
 
   const [firstMsg, firstTrace] = head(pairs) as MessageTracePair;
