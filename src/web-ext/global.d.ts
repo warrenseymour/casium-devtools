@@ -1,9 +1,11 @@
 import { runtime } from 'chrome';
 
-import { SerializedMessage, Listener } from './messaging';
+import { WebExtBus } from './messaging';
 
 declare global {
   interface Window {
+    MESSAGE_BUS: WebExtBus;
+
     PORTS: {
       [key: string]: runtime.Port
     };
@@ -12,9 +14,6 @@ declare global {
       [key: string]: typeof runtime.Port.postmessage
     };
 
-    MESSAGES: SerializedMessage[];
-    LISTENERS: Listener[][];
-    FLUSH_QUEUE: () => void;
     messageClient: (data: any) => void;
 
     _ARCH_DEV_TOOLS_STATE: {

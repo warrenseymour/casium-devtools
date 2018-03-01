@@ -1,46 +1,24 @@
-// This creates and maintains the communication channel between
-// the inspectedPage and the dev tools panel.
-//
-// In this example, messages are JSON objects
-// {
-//   action: ['code'|'script'|'message'], // What action to perform on the inspected page
-//   content: [String|Path to script|Object], // data to be passed through
-//   tabId: [Automatically added]
-// }
+import { Bus, Message } from '../common/message';
 
-import { Message, Command } from '../common/message';
+export class WebExtBus extends Bus {
+  protected _backgroundPageConnection: browser.runtime.Port | undefined;
 
-export type Command = [string, {}];
-
-export type Listener = (msg: Message) => any;
-
-(function createChannel() {
-
-  window.MESSAGES = [];
-  window.LISTENERS = []
-
-  let queue: Message[] = [];
-
-  window.FLUSH_QUEUE = () => {
-    queue.forEach(msg => window.LISTENERS.forEach(processMsg(msg)));
-    queue = [];
-  };
-
-  const processMsg = (msg: Message) =>
-    ([predicate, ...listeners]: Listener[]) => predicate(msg) && listeners.map(l => l(msg));
-
-  const backgroundPageConnection = browser.runtime.connect(undefined, { name: 'CasiumDevToolsPanel' });
-
-  backgroundPageConnection.onMessage.addListener((message: any) => {
-    window.LISTENERS.length ? window.LISTENERS.forEach(processMsg(message)) : queue.push(message);
-  });
-
-  window.messageClient = (data) => {
-    backgroundPageConnection.postMessage(Object.assign({
-      from: "CasiumDevToolsPanel",
-      tabId: browser.devtools.inspectedWindow.tabId,
-    }, data));
+  protected _init() {
+    this._backgroundPageConnection = browser.runtime.connect(undefined, { name: 'CasiumDevToolsPanel' });
+    this._backgroundPageConnection.onMessage.addListener(msg => this._receiveMessage(msg as Message));
   }
 
-  window.messageClient({ state: 'initialized' });
-}());
+  send(data: {}) {
+    if (!this._backgroundPageConnection) {
+      throw Error('Tried to send a message when background page connection is not ready.');
+    }
+
+    this._backgroundPageConnection.postMessage(Object.assign({
+      from: 'CasiumDevToolsPanel',
+      tabId: browser.devtools.inspectedWindow.tabId
+    }, data));
+  }
+}
+
+window.MESSAGE_BUS = new WebExtBus();
+window.MESSAGE_BUS.send({ state: 'initialized' });

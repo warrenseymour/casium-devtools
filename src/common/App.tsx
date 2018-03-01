@@ -2,7 +2,7 @@ import * as React from 'react';
 import * as FontAwesome from 'react-fontawesome';
 import { concat, contains, equals, head, last, isNil, merge, slice, where } from 'ramda';
 
-import { Message } from '../common/message';
+import { Message } from './message';
 import { download } from './util';
 import { MessageView } from './MessageView';
 
@@ -58,6 +58,8 @@ const extendSelection = (messages: Message[], selected: Message[], msg: Message)
   return slice(firstIdx, msgIdx + 1, messages);
 }
 
+const messageBus = window.MESSAGE_BUS;
+
 export class App extends React.Component<{}, State> {
   state: State = {
     messages: [],
@@ -79,24 +81,24 @@ export class App extends React.Component<{}, State> {
   }
 
   componentWillMount() {
-    window.LISTENERS.push([
+    messageBus.listeners.push([
       where({ from: equals('Arch'), state: isNil }),
       message => !this.state.haltForReplay && this.setState({ messages: this.state.messages.concat(message) })
     ]);
 
-    window.LISTENERS.push([
+    messageBus.listeners.push([
       where({ from: equals('ArchDevToolsPanel'), state: isNil }),
       message => this.state.haltForReplay && this.setState({ haltForReplay: false })
     ]);
 
-    window.LISTENERS.push([
+    messageBus.listeners.push([
       where({ from: equals('CasiumDevToolsPageScript'), state: equals('initialized') }),
       () => this.state.active.replay && this.setState({ haltForReplay: true }),
       () => this.state.active.clearOnReload && this.clearMessages(),
-      () => this.state.active.replay && window.messageClient({ selected: this.state.selected[0] }),
+      () => this.state.active.replay && messageBus.send({ selected: this.state.selected[0] }),
     ]);
 
-    window.FLUSH_QUEUE();
+    messageBus.flush();
   }
 
   setActive<K extends keyof State['active']>(key: K, state: boolean) {
@@ -112,7 +114,7 @@ export class App extends React.Component<{}, State> {
 
   clearMessages() {
     this.setState({
-      messages: (window.MESSAGES = []),
+      messages: (messageBus.messages = []),
       selected: [],
       haltForReplay: false,
       active: merge(this.state.active, { timeTravel: false, replay: false })
@@ -232,7 +234,7 @@ export class App extends React.Component<{}, State> {
                     const nextSelection = e.shiftKey ? extendSelection(messages, selected, msg) : [msg]
                     this.setState({ selected: nextSelection });
 
-                    active.timeTravel && window.messageClient({ selected: msg });
+                    active.timeTravel && messageBus.send({ selected: msg });
                   }}
                 >
                   {msg.message}
