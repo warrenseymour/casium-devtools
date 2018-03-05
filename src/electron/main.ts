@@ -10,6 +10,8 @@ if (process.env.NODE_ENV === 'development') {
   require('electron-reload')(__dirname);
 }
 
+const port = process.env.CASIUM_DEVTOOLS_PORT || '8080';
+
 app.on('ready', () => {
   mainWindow = new BrowserWindow({ width: 800, height: 600, icon: resolve(__dirname, './icon.png') });
   mainWindow.loadURL(`file://${__dirname}/panel.html`);
@@ -20,6 +22,7 @@ app.on('ready', () => {
   });
 
   server = new Server({
+    port,
     onMessage: data => {
       mainWindow.webContents.send('bus-message', data);
     },

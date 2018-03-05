@@ -2,6 +2,7 @@ import * as http from 'http';
 import * as ws from 'ws';
 
 interface Options {
+  port: string;
   onMessage: (message: {}) => void;
   onConnect: () => void;
 }
@@ -17,7 +18,7 @@ export class Server {
       server: this._httpServer
     });
 
-    this._httpServer.listen(8080);
+    this._httpServer.listen(_options.port);
 
     this._wsServer.on('connection', socket => this._initializeSocket(socket))
   }
