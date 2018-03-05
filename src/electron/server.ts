@@ -5,6 +5,7 @@ interface Options {
   port: string;
   onMessage: (message: {}) => void;
   onConnect: () => void;
+  onDisconnect: () => void;
 }
 
 export class Server {
@@ -40,6 +41,7 @@ export class Server {
     this._activeSocket.onclose = e => {
       console.info('Active WebSocket connection closed');
       this._activeSocket = undefined;
+      this._options.onDisconnect();
     }
 
     this._activeSocket.onerror = err => {

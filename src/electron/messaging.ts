@@ -24,7 +24,11 @@ export class ElectronBus extends Bus {
     });
 
     ipcRenderer.on('bus-ready', () => {
-      this._notifyClientReady();
+      this._onConnect();
+    })
+
+    ipcRenderer.on('bus-disconnect', () => {
+      this._onDisconnect();
     })
   }
 

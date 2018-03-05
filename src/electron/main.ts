@@ -28,6 +28,9 @@ app.on('ready', () => {
     },
     onConnect: () => {
       mainWindow.webContents.send('bus-ready');
+    },
+    onDisconnect: () => {
+      mainWindow.webContents.send('bus-disconnect');
     }
   })
 

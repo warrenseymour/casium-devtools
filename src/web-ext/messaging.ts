@@ -6,7 +6,7 @@ export class WebExtBus extends Bus {
   protected _init() {
     this._backgroundPageConnection = browser.runtime.connect(undefined, { name: 'CasiumDevToolsPanel' });
     this._backgroundPageConnection.onMessage.addListener(msg => this._receiveMessage(msg as Message));
-    this._notifyClientReady();
+    this._onConnect();
   }
 
   send(data: {}) {

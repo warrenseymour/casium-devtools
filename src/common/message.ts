@@ -21,6 +21,9 @@ export abstract class Bus {
   public messages: Message[] = [];
   public listeners: Listener[][] = [];
 
+  public onConnect?: () => void;
+  public onDisconnect?: () => void;
+
   protected _queue: Message[] = [];
 
   constructor() {
@@ -32,11 +35,17 @@ export abstract class Bus {
     this._queue = [];
   }
 
-  protected _notifyClientReady() {
+  protected _onConnect() {
     this.send({
       from: 'CasiumDevToolsPageScript',
       state: 'initialized'
     })
+
+    this.onConnect && this.onConnect();
+  }
+
+  protected _onDisconnect() {
+    this.onDisconnect && this.onDisconnect();
   }
 
   protected _receiveMessage(msg: Message) {
