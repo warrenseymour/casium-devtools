@@ -4,45 +4,40 @@ import { expect } from 'chai';
 import { shallow } from 'enzyme';
 
 import { App } from './App';
+import { Listener, Message } from './message';
 import * as util from './util';
 
-declare var global: {
-  window: {
-    LISTENERS: Function[][],
-    FLUSH_QUEUE: () => void,
-    messageClient: sinon.SinonSpy
-  };
+const messageBus = {
+  listeners: [] as Listener[][],
+  flush: () => { },
+  send: sinon.spy()
 };
 
 beforeEach(() => {
-  global.window = {
-    LISTENERS: [],
-    FLUSH_QUEUE: () => { },
-    messageClient: sinon.spy()
-  };
+  messageBus.listeners = [];
 });
 
 context('when a new message is received', () => {
   it('is appended to `state.messages`', () => {
-    const wrapper = shallow(<App />);
-    const message = { id: '0', from: 'Arch' };
-    global.window.LISTENERS[0][1](message);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
+    const message = { id: '0', from: 'Arch' } as Message;
+    messageBus.listeners[0][1](message);
 
     expect(wrapper.state().messages).to.deep.equal([message]);
   });
 
   it('un-sets `state.haltForReplay` if currently set', () => {
-    const message = { id: '0', from: 'ArchDevToolsPanel' };
-    const wrapper = shallow(<App />);
+    const message = { id: '0', from: 'ArchDevToolsPanel' } as Message;
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ haltForReplay: true });
 
-    global.window.LISTENERS[1][1](message);
+    messageBus.listeners[1][1](message);
     expect(wrapper.state().haltForReplay).to.equal(false);
   });
 
   it('sets `state.haltForReplay` to `true` and replays currently selected message', () => {
     const message = { id: '0', from: 'CasiumDevToolsPageScript', state: 'initialized' };
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({
       messages: [{ id: '1' }],
       selected: [{ id: '1' }],
@@ -52,16 +47,16 @@ context('when a new message is received', () => {
       }
     });
 
-    global.window.LISTENERS[2].forEach(listener => listener(message));
+    messageBus.listeners[2].forEach(listener => listener(message as any));
 
     expect(wrapper.state().haltForReplay).to.equal(true);
-    expect(global.window.messageClient.calledWith({ selected: { id: '1' } })).to.equal(true);
+    expect(messageBus.send.calledWith({ selected: { id: '1' } })).to.equal(true);
   });
 
   context('when `state.active.clearOnReload` is `true`', () => {
     it('clears message history and selection, and sets `state.haltForReplay` to `false`', () => {
       const message = { id: '0', from: 'CasiumDevToolsPageScript', state: 'initialized' };
-      const wrapper = shallow(<App />);
+      const wrapper = shallow(<App messageBus={messageBus as any} />);
       wrapper.setState({
         messages: [{ id: '1' }],
         selected: [{ id: '1' }],
@@ -72,7 +67,7 @@ context('when a new message is received', () => {
         }
       });
 
-      global.window.LISTENERS[2].forEach(listener => listener(message));
+      messageBus.listeners[2].forEach(listener => listener(message as any));
 
       const state = wrapper.state();
       expect(state.haltForReplay).to.equal(false);
@@ -94,7 +89,7 @@ const messages = [{
 
 context('when a message is clicked', () => {
   it('sets `state.selected` to the message that was clicked', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ messages });
     wrapper.find('.panel-item').at(1).simulate('click', {});
 
@@ -105,7 +100,7 @@ context('when a message is clicked', () => {
 
   context('when time-travel is enabled', () => {
     it('sends a message to the client', () => {
-      const wrapper = shallow(<App />);
+      const wrapper = shallow(<App messageBus={messageBus as any} />);
       wrapper.setState({
         messages,
         active: {
@@ -115,7 +110,7 @@ context('when a message is clicked', () => {
 
       wrapper.find('.panel-item').at(1).simulate('click', {});
 
-      expect(global.window.messageClient.calledWith({
+      expect(messageBus.send.calledWith({
         selected: {
           id: '1'
         }
@@ -126,7 +121,7 @@ context('when a message is clicked', () => {
 
 context('when a message is shift-clicked', () => {
   it('sets `state.selected` to the new selection range', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ messages });
 
     wrapper.find('.panel-item').at(1).simulate('click', { shiftKey: true });
@@ -174,7 +169,7 @@ context('when a message is shift-clicked', () => {
 
 describe('clear button', () => {
   it('clears messages on click', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ messages });
 
     wrapper.find('.clear-messages-button').simulate('click', {});
@@ -182,7 +177,7 @@ describe('clear button', () => {
   });
 
   it('toggles `active.clearOnReload` when meta- or ctrl-clicked', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ messages });
 
     wrapper.find('.clear-messages-button').simulate('click', { metaKey: true });
@@ -197,7 +192,7 @@ describe('clear button', () => {
 
 describe('time travel button', () => {
   it('toggles `state.active.timeTravel` on click', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.find('.time-travel-button').simulate('click');
 
     expect(wrapper.state().active.timeTravel).to.equal(true);
@@ -206,7 +201,7 @@ describe('time travel button', () => {
 
 describe('unit test button', () => {
   it('toggles `state.active.unitTest` on click', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.find('.unit-test-button').simulate('click');
 
     expect(wrapper.state().active.unitTest).to.equal(true);
@@ -219,7 +214,7 @@ describe('download button', () => {
   });
 
   it('downloads a JSON representation of message history on click', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ messages });
     wrapper.find('.save-msg-button').simulate('click');
 
@@ -245,12 +240,12 @@ describe('download button', () => {
 
 describe('replay button', () => {
   it('is not visible when no messages are selected', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     expect(wrapper.find('.replay-button').exists()).to.equal(false);
   });
 
   it('toggles `state.active.replay` on click', () => {
-    const wrapper = shallow(<App />);
+    const wrapper = shallow(<App messageBus={messageBus as any} />);
     wrapper.setState({ messages, selected: messages });
     wrapper.find('.replay-button').simulate('click');
 
