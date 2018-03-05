@@ -38,5 +38,3 @@ export class ElectronBus extends Bus {
     }, data));
   }
 }
-
-window.MESSAGE_BUS = new ElectronBus();

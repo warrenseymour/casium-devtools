@@ -4,8 +4,6 @@ import { Bus } from './message';
 
 declare global {
   interface Window {
-    MESSAGE_BUS: Bus;
-
     PORTS: {
       [key: string]: runtime.Port
     };

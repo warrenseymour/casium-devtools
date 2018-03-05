@@ -2,12 +2,16 @@ import * as React from 'react';
 import * as FontAwesome from 'react-fontawesome';
 import { concat, contains, equals, head, last, isNil, merge, slice, where } from 'ramda';
 
-import { Message } from './message';
+import { Message, Bus } from './message';
 import { download } from './util';
 import { MessageView } from './MessageView';
 
 import 'font-awesome/scss/font-awesome.scss';
 import './App.scss';
+
+interface Props {
+  messageBus: Bus;
+}
 
 interface State {
   messages: Message[];
@@ -58,9 +62,7 @@ const extendSelection = (messages: Message[], selected: Message[], msg: Message)
   return slice(firstIdx, msgIdx + 1, messages);
 }
 
-const messageBus = window.MESSAGE_BUS;
-
-export class App extends React.Component<{}, State> {
+export class App extends React.Component<Props, State> {
   state: State = {
     messages: [],
     selected: [],
@@ -81,6 +83,8 @@ export class App extends React.Component<{}, State> {
   }
 
   componentWillMount() {
+    const { messageBus } = this.props;
+
     messageBus.listeners.push([
       where({ from: equals('Arch'), state: isNil }),
       message => !this.state.haltForReplay && this.setState({ messages: this.state.messages.concat(message) })
@@ -113,6 +117,8 @@ export class App extends React.Component<{}, State> {
   }
 
   clearMessages() {
+    const { messageBus } = this.props;
+
     this.setState({
       messages: (messageBus.messages = []),
       selected: [],
@@ -122,6 +128,7 @@ export class App extends React.Component<{}, State> {
   }
 
   render() {
+    const { messageBus } = this.props;
     const { messages, selected, active } = this.state;
 
     return (

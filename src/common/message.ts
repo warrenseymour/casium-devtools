@@ -17,6 +17,15 @@ export interface Message {
 
 export type Listener = (msg: Message) => any;
 
+interface Options {
+  onConnect: () => void;
+  onDisconnect: () => void;
+}
+
+export type BusConstructor = {
+  new(_options: Options): Bus;
+}
+
 export abstract class Bus {
   public messages: Message[] = [];
   public listeners: Listener[][] = [];
@@ -26,7 +35,7 @@ export abstract class Bus {
 
   protected _queue: Message[] = [];
 
-  constructor() {
+  constructor(protected _options: Options) {
     this._init();
   }
 
@@ -41,11 +50,11 @@ export abstract class Bus {
       state: 'initialized'
     })
 
-    this.onConnect && this.onConnect();
+    this._options.onConnect();
   }
 
   protected _onDisconnect() {
-    this.onDisconnect && this.onDisconnect();
+    this._options.onDisconnect();
   }
 
   protected _receiveMessage(msg: Message) {

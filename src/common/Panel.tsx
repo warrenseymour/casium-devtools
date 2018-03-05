@@ -1,10 +1,12 @@
 import * as React from 'react';
 
 import { App } from './App';
+import { Bus, BusConstructor } from './message';
 import './Panel.scss';
 
 interface Props {
   ConnectionInstructions: React.ComponentClass;
+  messageBus: BusConstructor;
 }
 
 interface State {
@@ -13,6 +15,8 @@ interface State {
 }
 
 export class Panel extends React.Component<Props, State> {
+  protected _messageBus!: Bus;
+
   state: State = {
     connected: false,
     lostPreviousConnection: false
@@ -21,7 +25,7 @@ export class Panel extends React.Component<Props, State> {
   render() {
     if (this.state.connected) {
       return (
-        <App />
+        <App messageBus={this._messageBus} />
       );
     }
 
@@ -36,16 +40,18 @@ export class Panel extends React.Component<Props, State> {
   }
 
   componentDidMount() {
-    window.MESSAGE_BUS.onConnect = () => {
-      this.setState({ connected: true });
-    }
+    this._messageBus = new this.props.messageBus({
+      onConnect: () => {
+        this.setState({ connected: true });
+      },
 
-    window.MESSAGE_BUS.onDisconnect = () => {
-      this.setState({
-        connected: false,
-        lostPreviousConnection: true
-      });
-    }
+      onDisconnect: () => {
+        this.setState({
+          connected: false,
+          lostPreviousConnection: true
+        });
+      }
+    });
   }
 
   protected _renderDisconnected() {
