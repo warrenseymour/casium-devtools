@@ -6,7 +6,7 @@
 // browser.extension.*
 
 browser.runtime.onConnect.addListener(port => {
-  const extensionListener = (message: any, sender: browser.runtime.MessageSender, sendResponse: (response?: any) => void) => {
+  const extensionListener = (message: any, sender: browser.runtime.MessageSender) => {
     if (message.tabId) {
       if (message.action === 'code' && message.content) {
         // Evaluate script in inspectedPage
@@ -17,7 +17,7 @@ browser.runtime.onConnect.addListener(port => {
       } else {
         console.log("%c[Relaying Message]", "font-weight: bold; color: #e6b800;", message);
         // Pass message to inspectedPage
-        browser.tabs.sendMessage(message.tabId, message).then(sendResponse);
+        browser.tabs.sendMessage(message.tabId, message);
       }
 
       // This accepts messages from the inspectedPage and
@@ -25,7 +25,6 @@ browser.runtime.onConnect.addListener(port => {
     } else {
       port.postMessage(message);
     }
-    sendResponse(message);
   }
 
   // Listens to messages sent from the panel
@@ -59,7 +58,7 @@ browser.runtime.onConnect.addListener(port => {
     queues[port.name] = [];
   }
 
-  const portListener = function(message: any, sender: browser.runtime.Port, sendResponse: (response?: any) => void) {
+  const portListener = function(message: any, sender: browser.runtime.Port) {
     console.log("%c[Client Message]: " + sender.name, "font-weight: bold; color: #e6b800;", message);
 
     if (!channels[sender.name]) {

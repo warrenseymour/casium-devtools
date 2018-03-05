@@ -20,5 +20,3 @@ export class WebExtBus extends Bus {
     }, data));
   }
 }
-
-window.MESSAGE_BUS = new WebExtBus();
