@@ -10,7 +10,7 @@ module.exports = merge(config, {
     background: './src/web-ext/background.ts',
     devtools: './src/web-ext/devtools.ts',
     messaging: './src/web-ext/messaging.ts',
-    panel: './src/common/panel.ts'
+    panel: './src/web-ext/panel.ts'
   },
 
   output: {

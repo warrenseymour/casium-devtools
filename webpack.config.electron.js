@@ -8,7 +8,7 @@ module.exports = merge(config, {
 
   entry: {
     messaging: './src/electron/messaging.ts',
-    panel: './src/common/panel.ts'
+    panel: './src/electron/panel.ts'
   },
 
   output: {
