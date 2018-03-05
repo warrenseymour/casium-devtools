@@ -2,10 +2,12 @@
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "outDir": "./dist/electron",
-    "sourceMap": false
+    "sourceMap": false,
+    "removeComments": true
   },
   "files": [
     "src/electron/main.ts",
-    "src/electron/server.ts"
+    "src/electron/server.ts",
+    "src/electron/client.ts"
   ]
 }

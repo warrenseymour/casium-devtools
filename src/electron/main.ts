@@ -1,6 +1,9 @@
 import { app, BrowserWindow, ipcMain } from 'electron';
+import { readFile } from 'fs';
 import { resolve } from 'path';
+import { promisify } from 'util';
 
+const readFileAsync = promisify(readFile);
 import { Server } from './server';
 
 let mainWindow: BrowserWindow;
@@ -37,6 +40,17 @@ app.on('ready', () => {
   ipcMain.on('bus-message', (event: any, data: {}) => {
     server.send(data);
   });
+
+  ipcMain.on('get-client-script', (event: any) => {
+    readFileAsync(resolve(__dirname, 'client.js'))
+      .then(result => {
+        const script = result.toString().replace('%PORT%', port);
+        event.sender.send(
+          'client-script',
+          `<script>\n${script}</script>`
+        );
+      })
+  })
 });
 
 app.on('window-all-closed', () => {
