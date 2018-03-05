@@ -1,8 +1,7 @@
 import { render } from 'react-dom';
 import { createElement } from 'react';
 
-import { App } from '../common/App';
+import { Panel } from '../common/Panel';
+import { ConnectionInstructions } from './ConnectionInstructions';
 
-window.MESSAGE_BUS.onConnect = () => {
-  render(createElement(App), document.getElementById('app'));
-}
+render(createElement(Panel, { ConnectionInstructions }), document.getElementById('app'));
