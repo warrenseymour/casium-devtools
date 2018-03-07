@@ -3,8 +3,8 @@ import { ObjectInspector } from 'react-inspector';
 import { unnest, identity, last, pluck } from 'ramda';
 import { diff } from 'json-diff';
 
-import { SerializedMessage, SerializedCommand } from './client';
-import { DependencyTrace, runDependencyTrace } from './dependency-trace';
+import { SerializedMessage, SerializedCommand, DependencyTraceResult } from './client';
+import { ClientInterface } from './client-interface';
 import { nextState, deepPick } from './util';
 import { nodeRenderer, nodeMapper, diffNodeMapper } from './object-inspector';
 import { generateUnitTest } from './test-generator';
@@ -12,18 +12,19 @@ import { MessageHeading } from './MessageHeading';
 
 import './MessageView.scss';
 
-interface Props {
+export interface Props {
   selected: SerializedMessage[];
   showUnitTest?: boolean;
   showPrevState?: boolean;
   showDiffState?: boolean;
   showNextState?: boolean;
   useDependencyTrace?: boolean;
+  clientInterface: ClientInterface;
 }
 
 interface State {
   unitTest?: string;
-  dependencyTraces: DependencyTrace[];
+  dependencyTraces: DependencyTraceResult[];
   relativeTime: boolean;
 }
 
@@ -89,7 +90,7 @@ export class MessageView extends React.Component<Props, State> {
     const items = selected.map((msg, index) => {
       const dependencyTrace = dependencyTraces[index];
       const relay = (useDependencyTrace && dependencyTrace) ? deepPick(msg.relay, dependencyTrace.relay) : msg.relay;
-      const data = (useDependencyTrace && dependencyTrace) ? deepPick(msg.data, dependencyTrace.message) : msg.data;
+      const data = (useDependencyTrace && dependencyTrace) ? deepPick(msg.data || {}, dependencyTrace.message) : msg.data || {};
 
       const relayItem = Object.keys(relay).length > 0 ? [
         <div className="panel-label">Relay</div>,
@@ -203,7 +204,7 @@ export class MessageView extends React.Component<Props, State> {
 
   protected _updateDependencyTraces(enabled: boolean | undefined, selected: SerializedMessage[]) {
     const traces = enabled ?
-      Promise.all(selected.map(runDependencyTrace)) :
+      Promise.all(selected.map(this.props.clientInterface.dependencyTrace)) :
       Promise.resolve([]);
 
     return traces
@@ -214,7 +215,7 @@ export class MessageView extends React.Component<Props, State> {
       });
   }
 
-  protected _updateUnitTest(messages: SerializedMessage[], traces: DependencyTrace[]) {
+  protected _updateUnitTest(messages: SerializedMessage[], traces: DependencyTraceResult[]) {
     this.setState({
       unitTest: generateUnitTest(messages, traces)
     });

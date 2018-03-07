@@ -13,7 +13,8 @@ let listeners: Listener[] = [];
 const clientInterface = createClientInterface({
   send: sinon.spy(),
   addListener: fn => listeners = listeners.concat(fn),
-  removeListener: fn => without([fn], listeners)
+  removeListener: fn => without([fn], listeners),
+  dependencyTrace: () => Promise.resolve({ model: [], message: [], relay: [] })
 })
 
 beforeEach(() => {

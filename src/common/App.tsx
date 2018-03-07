@@ -258,6 +258,7 @@ export class App extends React.Component<Props, State> {
           <div key="panel-head" className="panel content with-heading">
             <MessageView
               selected={selected}
+              clientInterface={clientInterface}
               useDependencyTrace={active.dependencyTrace}
               showUnitTest={active.unitTest}
               showPrevState={active.prevState}

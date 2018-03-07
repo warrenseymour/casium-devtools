@@ -1,11 +1,11 @@
 import * as React from 'react';
 
-import { Message } from './message';
+import { SerializedMessage } from './client';
 
 const REFRESH_INTERVAL = 500;
 
 interface Props {
-  msg: Message;
+  msg: SerializedMessage;
   relativeTime: boolean;
   onToggle: (relativeTime: boolean) => void;
 }

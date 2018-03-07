@@ -1,4 +1,4 @@
-import { SerializedMessage } from './client';
+import { SerializedMessage, DependencyTraceResult } from './client';
 
 /**
  * A ClientInterface implementation should broadcast this message when the DevTools
@@ -69,12 +69,15 @@ export type ClientInterface = {
    * called with the message.
    */
   subscribe: (listeners: Listener[][]) => () => void;
+
+  dependencyTrace: (msg: SerializedMessage) => Promise<DependencyTraceResult>;
 }
 
 type CreateClientInterfaceOptions = {
   send: (msg: Message) => void;
   addListener: (listener: Listener) => void;
   removeListener: (listener: Listener) => void;
+  dependencyTrace: (msg: SerializedMessage) => Promise<DependencyTraceResult>;
 }
 
 /**
@@ -83,8 +86,10 @@ type CreateClientInterfaceOptions = {
  * WebExtension and Electron implementation provide their own specific logic
  * inside these functions.
  */
-export const createClientInterface = ({ send, addListener, removeListener }: CreateClientInterfaceOptions): ClientInterface => ({
+export const createClientInterface = ({ send, addListener, removeListener, dependencyTrace }: CreateClientInterfaceOptions): ClientInterface => ({
   send,
+
+  dependencyTrace,
 
   subscribe: subs => {
     const listenerFns = subs.map(([predicate, ...handlers]) => (msg: Message) => {
