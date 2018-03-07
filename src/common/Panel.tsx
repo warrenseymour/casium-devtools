@@ -1,12 +1,13 @@
 import * as React from 'react';
+import { where, equals } from 'ramda';
 
 import { App } from './App';
-import { Bus, BusConstructor } from './message';
+import { ClientInterface } from './client-interface';
 import './Panel.scss';
 
 interface Props {
   ConnectionInstructions: React.ComponentClass;
-  messageBus: BusConstructor;
+  clientInterface: ClientInterface;
 }
 
 interface State {
@@ -15,7 +16,7 @@ interface State {
 }
 
 export class Panel extends React.Component<Props, State> {
-  protected _messageBus!: Bus;
+  protected _unsub?: () => void;
 
   state: State = {
     connected: false,
@@ -23,13 +24,14 @@ export class Panel extends React.Component<Props, State> {
   }
 
   render() {
+    const { ConnectionInstructions, clientInterface } = this.props;
+
     if (this.state.connected) {
       return (
-        <App messageBus={this._messageBus} />
+        <App clientInterface={clientInterface} />
       );
     }
 
-    const { ConnectionInstructions } = this.props;
     return (
       <div className="connect">
         {this._renderDisconnected()}
@@ -40,18 +42,16 @@ export class Panel extends React.Component<Props, State> {
   }
 
   componentDidMount() {
-    this._messageBus = new this.props.messageBus({
-      onConnect: () => {
-        this.setState({ connected: true });
-      },
+    const { clientInterface } = this.props;
 
-      onDisconnect: () => {
-        this.setState({
-          connected: false,
-          lostPreviousConnection: true
-        });
-      }
-    });
+    this._unsub = clientInterface.subscribe([
+      [where({ type: equals('connected') }), () => this.setState({ connected: true })],
+      [where({ type: equals('disconnected') }), () => this.setState({ connected: false, lostPreviousConnection: true })]
+    ])
+  }
+
+  componentWillUnmount() {
+    this._unsub && this._unsub();
   }
 
   protected _renderDisconnected() {

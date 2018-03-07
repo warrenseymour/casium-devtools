@@ -1,91 +1,112 @@
-// Browser automatically creates a background.html page for this to execute.
-// This can access the inspected page via executeScript
-//
-// Can use:
-// browser.tabs.*
-// browser.extension.*
+import { Message } from '../common/client-interface';
 
-browser.runtime.onConnect.addListener(port => {
-  const extensionListener = (message: any, sender: browser.runtime.MessageSender) => {
-    if (message.tabId) {
-      if (message.action === 'code' && message.content) {
-        // Evaluate script in inspectedPage
-        browser.tabs.executeScript(message.tabId, { code: message.content });
-      } else if (message.action === 'script' && message.content) {
-        // Attach script to inspectedPage
-        browser.tabs.executeScript(message.tabId, { file: message.content });
-      } else {
-        console.log("%c[Relaying Message]", "font-weight: bold; color: #e6b800;", message);
-        // Pass message to inspectedPage
-        browser.tabs.sendMessage(message.tabId, message);
-      }
-
-      // This accepts messages from the inspectedPage and
-      // sends them to the panel
-    } else {
-      port.postMessage(message);
-    }
+/**
+ * A mapping of opened Ports, the name of the channel that messages on that Port
+ * should be forwarded to, and a queue of pending messages (in case the
+ * destination port does not exist yet).
+ */
+interface PortMapping {
+  [source: string]: {
+    dest: string;
+    port?: browser.runtime.Port;
+    queue: {}[];
   }
+}
 
-  // Listens to messages sent from the panel
-  browser.runtime.onMessage.addListener(extensionListener);
+const PORT_MAPPING: PortMapping = {
+  CasiumDevToolsContentScript: {
+    dest: 'CasiumDevToolsPanel',
+    queue: []
+  },
 
-  port.onDisconnect.addListener(() => {
-    browser.runtime.onMessage.removeListener(extensionListener);
-  });
-
-  port.onMessage.addListener(message => {
-    port.postMessage(message);
-  });
-});
-
-const ports: typeof window.PORTS = window.PORTS = {};
-const queues: typeof window.QUEUES = window.QUEUES = {};
-
-const channels: { [key: string]: string } = {
-  CasiumDevToolsPageScript: "CasiumDevToolsPanel",
-  CasiumDevToolsPanel: "CasiumDevToolsPageScript"
+  CasiumDevToolsPanel: {
+    dest: 'CasiumDevToolsContentScript',
+    queue: []
+  }
 };
 
-// DevTools / page connection
+/**
+ * Sends a message to all connected ports
+ */
+const broadcast = (msg: Message) =>
+  Object.keys(PORT_MAPPING).forEach(source => {
+    try {
+      (PORT_MAPPING[source].port as browser.runtime.Port).postMessage({
+        source: 'CasiumDevToolsBackgroundScript',
+        ...msg
+      });
+    } catch (e) { }
+  })
+
+/**
+ * Ensures that all ports are connected
+ */
+const allReady = () =>
+  Object.keys(PORT_MAPPING).reduce((prev, source) => prev && !!PORT_MAPPING[source].port, true);
+
+/**
+ * Configures a simple message relaying mechanism. Whenever the DevTools or
+ * Content Script connects to the Background page, register the connecting port
+ * in `PORT_MAPPING` and configure a message handler.
+ *
+ * Once this handler has been configured, any queued messages will be relayed
+ * and the queue emptied.
+ */
 browser.runtime.onConnect.addListener(port => {
-
-  console.log("%c[Client Connected]: " + port.name, "font-weight: bold; color: #2eb82e;", port);
-  ports[port.name] = port;
-
-  if (queues[port.name] && queues[port.name].length) {
-    queues[port.name].forEach(port.postMessage.bind(port));
-    queues[port.name] = [];
+  if (!Object.keys(PORT_MAPPING).includes(port.name)) {
+    console.log(`Client '${port.name} ignored`);
+    return;
   }
 
-  const portListener = function(message: any, sender: browser.runtime.Port) {
-    console.log("%c[Client Message]: " + sender.name, "font-weight: bold; color: #e6b800;", message);
+  console.log(`Client '${port.name}' connected`);
+  Object.assign(PORT_MAPPING[port.name], { port });
 
-    if (!channels[sender.name]) {
-      throw new Error('NO CHANNEL DEFINED FOR SENDER');
+  /**
+   * Whenever a message is received on a port, lookup the destination port in
+   * `PORT_MAPPING` and relay the received message to the destination port. If
+   * the destination port does not exist (ie, it has not connected yet), then
+   * queue the message instead.
+   */
+  const messageHandler = (message: {}, sender: browser.runtime.Port) => {
+    console.log(`%cMessage FROM '${sender.name}'`, 'font-weight: bold; color: #e6b800;', message);
+
+    if (!PORT_MAPPING[sender.name]) {
+      throw new Error('No channel defined for sender');
     }
 
-    const destination = channels[sender.name], port = ports[destination];
+    const { dest } = PORT_MAPPING[sender.name];
+    const { port: destPort, queue: destQueue } = PORT_MAPPING[dest];
 
-    if (!port) {
-      console.log("%c[Message Not Relayed]", "font-weight: bold; color: #cc2900;", message, { ports, sender });
-      queues[destination] = queues[destination] || [];
-      queues[destination].push(message);
+    if (!destPort) {
+      console.log('%cMessage Not Relayed: Destination port does not exist - message queued', 'font-weight: bold; color: #cc2900;', message);
+      destQueue.push(message);
       return;
     }
-    console.log("%c[Message Relayed]: " + destination, "font-weight: bold; color: #e6b800;", message, { ports, sender });
-    port.postMessage(message);
 
-    if (message.tabId && message.scriptToInject) {
-      browser.tabs.executeScript(message.tabId, { file: message.scriptToInject });
-    }
+    console.log(`%cMessage Relayed TO '${dest}'`, 'font-weight: bold; color: #e6b800;', message);
+    destPort.postMessage(message);
   }
 
-  port.postMessage({ info: "Client connected to background", name: port.name });
+  port.onMessage.addListener(messageHandler as any);
 
-  port.onDisconnect.addListener(function() {
-    (port.onMessage.removeListener as any)(portListener);
-    delete ports[port.name];
-  });
-  (port.onMessage.addListener as any)(portListener);
+  /**
+   * When a port is disconnected, ensure the message handler is cleaned up and
+   * the entry is removed from `PORT_MAPPING`
+   */
+  port.onDisconnect.addListener(() => {
+    console.log(`%cPort '${port.name}' disconnected`, 'font-weight: bold; color: #cc2900;');
+    (port as any).onMessage.removeListener(messageHandler);
+    broadcast({ type: 'disconnected' });
+    delete PORT_MAPPING[port.name].port;
+  })
+
+  if (allReady()) {
+    console.log(`All clients connected, sending 'connected' message`);
+    broadcast({ type: 'connected' });
+  }
+
+  const { queue } = PORT_MAPPING[port.name];
+  console.log(`%cRelaying ${queue.length} queued messages TO '${port.name}'`, 'font-weight: bold; color: #e6b800;');
+  queue.forEach(msg => port.postMessage(msg));
+  PORT_MAPPING[port.name].queue = [];
 });

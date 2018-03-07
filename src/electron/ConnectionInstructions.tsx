@@ -1,44 +1,24 @@
 import * as React from 'react';
-import { ipcRenderer } from 'electron';
 
-interface State {
-  script: string;
-}
-
-export class ConnectionInstructions extends React.Component<{}, State> {
-  state: State = {
-    script: ''
-  }
-
+export class ConnectionInstructions extends React.Component {
   render() {
-    const { script } = this.state;
+    const port = process.env.CASIUM_DEVTOOLS_PORT || '8080';
+
+    const scriptTag = `<script src="http://localhost:${port}"></script>`;
 
     return (
       <div>
         <h4>React DOM</h4>
         <p>
-          Please add <textarea value={script} onClick={this._selectAll} /> to
-          the top of the page you want to inspect, <b>before</b> React DOM is
-          imported.
+          Please add <input defaultValue={scriptTag} onClick={this._selectAll} /> to
+          the top of the page you want to inspect.
         </p>
       </div>
     );
   }
 
-  componentDidMount() {
-    ipcRenderer.send('get-client-script');
-    ipcRenderer.on('client-script', this._receiveClientScript);
-  }
-
-  componentWillUnmount() {
-    ipcRenderer.removeListener('client-script', this._receiveClientScript);
-  }
-
-  protected _receiveClientScript = (event: any, script: string) =>
-    this.setState({ script })
-
-  protected _selectAll(e: React.SyntheticEvent<HTMLTextAreaElement>) {
-    const target = e.target as HTMLTextAreaElement;
+  protected _selectAll(e: React.SyntheticEvent<HTMLInputElement>) {
+    const target = e.target as HTMLInputElement;
     target.selectionStart = 0;
     target.selectionEnd = target.value.length;
   }

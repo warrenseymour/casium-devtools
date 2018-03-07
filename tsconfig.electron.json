@@ -7,7 +7,6 @@
   },
   "files": [
     "src/electron/main.ts",
-    "src/electron/server.ts",
-    "src/electron/client.ts"
+    "src/electron/server.ts"
   ]
 }

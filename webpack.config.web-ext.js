@@ -7,9 +7,9 @@ const { merge, config, isProd, filterTruthy } = require('./webpack.config.common
 module.exports = merge(config, {
   entry: {
     'content-script': './src/web-ext/content-script.ts',
+    client: './src/common/client.ts',
     background: './src/web-ext/background.ts',
     devtools: './src/web-ext/devtools.ts',
-    messaging: './src/web-ext/messaging.ts',
     panel: './src/web-ext/panel.ts'
   },
 

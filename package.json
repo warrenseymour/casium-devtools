@@ -6,7 +6,7 @@
   "scripts": {
     "watch:web-ext": "NODE_ENV=development yarn build:web-ext --watch",
     "watch:electron": "NODE_ENV=development concurrently \"yarn watch:electron:main\" \"yarn watch:electron:renderer\" -n main,renderer",
-    "watch:electron:main": "nodemon -w src/electron/main.ts -x \"yarn build:electron:main && yarn start\"",
+    "watch:electron:main": "nodemon -w src/electron/main.ts -w src/electron/client.ts -x \"yarn build:electron:main && yarn start\"",
     "watch:electron:renderer": "yarn build:electron:renderer --watch",
     "build": "yarn clean && NODE_ENV=production yarn build:web-ext && NODE_ENV=production yarn build:electron",
     "build:web-ext": "webpack --config=webpack.config.web-ext.js",

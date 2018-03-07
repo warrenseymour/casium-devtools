@@ -1,21 +1,22 @@
 import * as React from 'react';
 import * as FontAwesome from 'react-fontawesome';
-import { concat, contains, equals, head, last, isNil, merge, slice, where } from 'ramda';
+import { concat, contains, equals, head, last, merge, slice, where } from 'ramda';
 
-import { Message, Bus } from './message';
 import { download } from './util';
 import { MessageView } from './MessageView';
+import { SerializedMessage } from './client';
+import { ClientInterface, NewMessage } from './client-interface';
 
 import 'font-awesome/scss/font-awesome.scss';
 import './App.scss';
 
 interface Props {
-  messageBus: Bus;
+  clientInterface: ClientInterface
 }
 
 interface State {
-  messages: Message[];
-  selected: Message[];
+  messages: SerializedMessage[];
+  selected: SerializedMessage[];
 
   haltForReplay: boolean;
 
@@ -36,13 +37,13 @@ interface State {
  * Extend an existing message selection (`selected`) based on a list of all
  * messages (`messages`) and a newly selected message (`message`).
  */
-const extendSelection = (messages: Message[], selected: Message[], msg: Message) => {
+const extendSelection = (messages: SerializedMessage[], selected: SerializedMessage[], msg: SerializedMessage) => {
   if (!selected.length) {
     return [msg];
   }
 
   const msgIdx = messages.indexOf(msg);
-  const lastIdx = messages.indexOf(last(selected) as Message);
+  const lastIdx = messages.indexOf(last(selected) as SerializedMessage);
 
   if (msgIdx > lastIdx) {
     // Message is after end of selection; gather messages from last selected to message and append to selection
@@ -50,7 +51,7 @@ const extendSelection = (messages: Message[], selected: Message[], msg: Message)
     return concat(selected, newMessages);
   }
 
-  const firstIdx = messages.indexOf(head(selected) as Message);
+  const firstIdx = messages.indexOf(head(selected) as SerializedMessage);
 
   if (msgIdx < firstIdx) {
     // Message is before start of selection; gather messages from message to first selected and prepend to selection
@@ -63,6 +64,8 @@ const extendSelection = (messages: Message[], selected: Message[], msg: Message)
 }
 
 export class App extends React.Component<Props, State> {
+  protected _unsub?: () => void;
+
   state: State = {
     messages: [],
     selected: [],
@@ -83,26 +86,27 @@ export class App extends React.Component<Props, State> {
   }
 
   componentWillMount() {
-    const { messageBus } = this.props;
+    const { clientInterface } = this.props;
 
-    messageBus.listeners.push([
-      where({ from: equals('Arch'), state: isNil }),
-      message => !this.state.haltForReplay && this.setState({ messages: this.state.messages.concat(message) })
-    ]);
+    this._unsub = clientInterface.subscribe([
+      [
+        where({ type: equals('message') }),
+        ev => !this.state.haltForReplay && this.setState({ messages: this.state.messages.concat((ev as NewMessage).message) })
+      ],
+      [
+        where({ type: equals('connected') }),
+        () => this.state.active.replay && this.setState({ haltForReplay: true }),
+        () => this.state.active.clearOnReload && this.clearMessages(),
+        () => this.state.active.replay && clientInterface.send({
+          type: 'timeTravel',
+          to: this.state.selected[0]
+        }),
+      ]
+    ])
+  }
 
-    messageBus.listeners.push([
-      where({ from: equals('ArchDevToolsPanel'), state: isNil }),
-      message => this.state.haltForReplay && this.setState({ haltForReplay: false })
-    ]);
-
-    messageBus.listeners.push([
-      where({ from: equals('CasiumDevToolsPageScript'), state: equals('initialized') }),
-      () => this.state.active.replay && this.setState({ haltForReplay: true }),
-      () => this.state.active.clearOnReload && this.clearMessages(),
-      () => this.state.active.replay && messageBus.send({ selected: this.state.selected[0] }),
-    ]);
-
-    messageBus.flush();
+  componentWillUnmount() {
+    this._unsub && this._unsub();
   }
 
   setActive<K extends keyof State['active']>(key: K, state: boolean) {
@@ -117,10 +121,8 @@ export class App extends React.Component<Props, State> {
   }
 
   clearMessages() {
-    const { messageBus } = this.props;
-
     this.setState({
-      messages: (messageBus.messages = []),
+      messages: [],
       selected: [],
       haltForReplay: false,
       active: merge(this.state.active, { timeTravel: false, replay: false })
@@ -128,7 +130,7 @@ export class App extends React.Component<Props, State> {
   }
 
   render() {
-    const { messageBus } = this.props;
+    const { clientInterface } = this.props;
     const { messages, selected, active } = this.state;
 
     return (
@@ -241,7 +243,10 @@ export class App extends React.Component<Props, State> {
                     const nextSelection = e.shiftKey ? extendSelection(messages, selected, msg) : [msg]
                     this.setState({ selected: nextSelection });
 
-                    active.timeTravel && messageBus.send({ selected: msg });
+                    active.timeTravel && clientInterface.send({
+                      type: 'timeTravel',
+                      to: msg
+                    });
                   }}
                 >
                   {msg.message}

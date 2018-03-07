@@ -1,25 +1,34 @@
 /**
- * Exposes a WebSocket -> window.postMessage interface using an IIFE. The
- * Electron UI should display the compiled version of this code so that users
- * may paste it into their application as a `<script>` tag. The `%`-enclosed
- * strings should be replaced by the Electron UI before rendering.
+ * This module should be served up by the HTTP server that lives inside the
+ * Electron application. It should be consumed by the inspected application as a
+ * `<script>` tag.
+ *
+ * By importing the common client module, a Client instance is
+ * created at `window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__`. An event listener is
+ * attached which relays emitted messages over a WebSocket connection.
  */
-((port: string) => {
-  const _socket = new WebSocket(`ws://localhost:${port}`);
+import '../common/client';
 
-  const send = (data: {}) => {
-    _socket.send(JSON.stringify(data));
-  }
+/**
+ * `%PORT%` should be replaced with the port number that the WebSocket server is
+ * running on; this replacement should be performed when this script is served
+ * by the Electron HTTP server.
+ */
+const socket = new WebSocket(`ws://localhost:%PORT%`);
 
-  window.addEventListener('message', ({ data }) => {
-    if (!data || data.from !== 'Arch') {
-      return;
-    }
+const onMessage = (message: any) => {
+  socket.send(JSON.stringify({
+    type: 'message',
+    message
+  }));
+}
 
-    send(data);
-  });
+socket.onopen = () => {
+  window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__ &&
+    window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__.on('message', onMessage);
+}
 
-  _socket.onmessage = ({ data }) => {
-    window.postMessage(JSON.parse(data), '*');
-  }
-})('%PORT%')
+socket.onclose = () => {
+  window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__ &&
+    window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__.removeListener('message', onMessage);
+}

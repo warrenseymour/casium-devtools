@@ -1,27 +1,35 @@
 import * as http from 'http';
 import * as ws from 'ws';
+import { readFile } from 'fs';
+import { promisify } from 'util';
+import { EventEmitter } from 'events';
+import { resolve } from 'path';
 
-interface Options {
-  port: string;
-  onMessage: (message: {}) => void;
-  onConnect: () => void;
-  onDisconnect: () => void;
-}
+const readFileAsync = promisify(readFile);
 
-export class Server {
+export class Server extends EventEmitter {
   protected _httpServer: http.Server;
   protected _wsServer: ws.Server;
   protected _activeSocket: ws | undefined;
 
-  constructor(protected _options: Options) {
+  constructor() {
+    super();
+
+    const port = process.env.CASIUM_DEVTOOLS_PORT || '8080';
+
     this._httpServer = http.createServer();
     this._wsServer = new ws.Server({
       server: this._httpServer
     });
 
-    this._httpServer.listen(_options.port);
+    this._httpServer.on('request', async (req, res) => {
+      const script = await readFileAsync(resolve(__dirname, 'client.js'));
+      res.end(`${script.toString().replace('%PORT%', port)}`);
+    });
 
     this._wsServer.on('connection', socket => this._initializeSocket(socket))
+
+    this._httpServer.listen(port);
   }
 
   protected _initializeSocket(socket: ws) {
@@ -35,13 +43,13 @@ export class Server {
     this._activeSocket = socket;
 
     this._activeSocket.onmessage = e => {
-      this._options.onMessage(e.data);
+      this.emit('message', JSON.parse(e.data.toString()));
     }
 
     this._activeSocket.onclose = e => {
       console.info('Active WebSocket connection closed');
       this._activeSocket = undefined;
-      this._options.onDisconnect();
+      this.emit('disconnect');
     }
 
     this._activeSocket.onerror = err => {
@@ -49,7 +57,7 @@ export class Server {
       console.error('Active WebSocket connection error', err);
     }
 
-    this._options.onConnect();
+    this.emit('connect');
   }
 
   send(message: {}) {

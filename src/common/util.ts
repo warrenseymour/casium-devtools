@@ -1,6 +1,6 @@
 import { and, both, equals, has, is, lensPath, map, merge, pipe, reduce, set, tail, view } from 'ramda';
 
-import { Message } from './message';
+import { SerializedMessage } from './client';
 
 export interface DownloadOptions {
   filename: string;
@@ -28,7 +28,7 @@ export const download = (options: Partial<DownloadOptions> = {}) => {
   link.dispatchEvent(evt);
 };
 
-export const nextState = ({ path, prev, next }: Message) =>
+export const nextState = ({ path, prev, next }: SerializedMessage) =>
   set(lensPath(path), next, prev);
 
 export const isModifiedObject = both(

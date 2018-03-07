@@ -1,11 +1,11 @@
 import * as hjson from 'hjson';
 import { any, head, keys, last, lensPath, set } from 'ramda';
 
-import { Message, Command } from './message';
+import { SerializedMessage, SerializedCommand } from './client';
 import { DependencyTrace } from './dependency-trace';
 import { deepPick } from './util';
 
-export type MessageTracePair = [Message, DependencyTrace | undefined];
+export type MessageTracePair = [SerializedMessage, DependencyTrace | undefined];
 
 const FORMATTING_OPTIONS: hjson.SerializeOptions = {
   condense: 80,
@@ -92,7 +92,7 @@ const containerDispatch = (pairs: MessageTracePair[]) => {
 const expectCommands = (pairs: MessageTracePair[]) => {
   const commands = pairs
     .filter(hasCommand)
-    .map(([msg]) => (msg.commands as Command[]).map(([name, data]) =>
+    .map(([msg]) => (msg.commands as SerializedCommand[]).map(([name, data]) =>
       `    new ${name}(${toJsVal(data)}),`
     ));
 
@@ -104,7 +104,7 @@ const expectCommands = (pairs: MessageTracePair[]) => {
   ] : [];
 }
 
-export const generateUnitTest = (messages: Message[], traces: DependencyTrace[]) => {
+export const generateUnitTest = (messages: SerializedMessage[], traces: DependencyTrace[]) => {
   const pairs = messages.map((message, index) => ([message, traces[index]])) as MessageTracePair[];
 
   const [firstMsg, firstTrace] = head(pairs) as MessageTracePair;

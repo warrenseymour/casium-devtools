@@ -1,38 +1,23 @@
-// Executes on client page load
-(() => {
-  const port = browser.runtime.connect(undefined, { name: 'CasiumDevToolsPageScript' });
-  const seen: string[] = [];
+import { PostedMessage } from '../common/client-interface';
 
-  // Get messages from background script
-  port.onMessage.addListener(function(msg) {
-    window.postMessage(msg, '*');
-  });
+const clientScript = document.createElement('script');
+clientScript.src = browser.extension.getURL('client.js');
 
-  port.postMessage({
-    from: 'CasiumDevToolsPageScript',
-    state: 'initialized'
-  });
+(document.head || document.documentElement).appendChild(clientScript);
 
-  window.addEventListener('message', function(message) {
-    if (!message || !message.data || !message.data.id || message.data.from === 'CasiumDevToolsPageScript') {
-      return;
-    }
-    if (seen.includes(message.data.id)) return;
-    seen.push(message.data.id);
+const backgroundPageConnection = browser.runtime.connect(undefined, { name: 'CasiumDevToolsContentScript' });
 
-    if (message.data.from !== 'Arch') {
-      return;
-    }
+/**
+ * Whenever a message is sent from the messaging script via
+ * `window.postMessage`, relay it to the background script via
+ * `backgroundPageConnection`. This will allow it to be forwarded on to the
+ * DevTools UI.
+ */
 
-    try {
-      port.postMessage(message.data);
-    } catch (e) {
-      // Probably a cached version of this script trying to talk to a version of the extension
-      // that no longer exists
-      console.warn([
-        "The page's connection to Architecture Dev Tools has gone out of sync.",
-        "Please refresh the page. If this issue persists, please restart the browser."
-      ].join(' '));
-    }
-  }, false);
-})();
+window.addEventListener('message', ({ data }: PostedMessage) => {
+  if (data.source !== 'CasiumDevToolsPanel') {
+    return;
+  }
+
+  backgroundPageConnection.postMessage(data);
+});
