@@ -6,6 +6,8 @@ import { EventEmitter } from 'events';
 import { resolve } from 'path';
 
 const readFileAsync = promisify(readFile);
+const PORT_REGEX = /%PORT%/g;
+const PID_REGEX = /%PID%/g;
 
 export class Server extends EventEmitter {
   protected _httpServer: http.Server;
@@ -24,7 +26,11 @@ export class Server extends EventEmitter {
 
     this._httpServer.on('request', async (req, res) => {
       const script = await readFileAsync(resolve(__dirname, 'client.js'));
-      res.end(`${script.toString().replace('%PORT%', port)}`);
+      const response = script.toString()
+        .replace(PORT_REGEX, port)
+        .replace(PID_REGEX, process.pid.toString());
+
+      res.end(response);
     });
 
     this._wsServer.on('connection', socket => this._initializeSocket(socket))

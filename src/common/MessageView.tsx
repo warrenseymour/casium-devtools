@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { ObjectInspector } from 'react-inspector';
-import { unnest, identity, last, pluck } from 'ramda';
+import { equals, identity, last, pluck, unnest, where } from 'ramda';
 import { diff } from 'json-diff';
 
 import { SerializedMessage, SerializedCommand, DependencyTraceResult } from './client';
@@ -48,10 +48,6 @@ export class MessageView extends React.Component<Props, State> {
     ) : null;
   }
 
-  componentDidMount() {
-    this._updateDependencyTraces(this.props.useDependencyTrace, this.props.selected);
-  }
-
   componentWillReceiveProps(nextProps: Props) {
     const shouldUpdateDependencyTraces = (
       (nextProps.useDependencyTrace !== this.props.useDependencyTrace) ||
@@ -59,7 +55,7 @@ export class MessageView extends React.Component<Props, State> {
     );
 
     const traces = shouldUpdateDependencyTraces ?
-      this._updateDependencyTraces(nextProps.useDependencyTrace, nextProps.selected) :
+      this._updateDependencyTraces(nextProps.selected, nextProps.useDependencyTrace) :
       Promise.resolve(this.state.dependencyTraces);
 
     const shouldUpdateUnitTest = (
@@ -202,22 +198,32 @@ export class MessageView extends React.Component<Props, State> {
     );
   }
 
-  protected _updateDependencyTraces(enabled: boolean | undefined, selected: SerializedMessage[]) {
-    const traces = enabled ?
-      Promise.all(selected.map(this.props.clientInterface.dependencyTrace)) :
-      Promise.resolve([]);
+  protected _updateDependencyTraces(selected: SerializedMessage[], enabled = false) {
+    return enabled ?
+      new Promise<DependencyTraceResult[]>((resolve, reject) => {
+        const { clientInterface } = this.props;
 
-    return traces
-      .then(dependencyTraces => {
-        this.setState({ dependencyTraces });
+        const unsub = clientInterface.subscribe([
+          [
+            where({ type: equals('dependencyTraceResult') }),
+            (msg: any) => {
+              this.setState({ dependencyTraces: msg.result });
+              resolve(msg.result);
+              unsub();
+            }
+          ]
+        ]);
 
-        return dependencyTraces;
-      });
+        clientInterface.send({
+          type: 'dependencyTrace',
+          messages: selected
+        });
+      }) : Promise.resolve([]);
   }
 
-  protected _updateUnitTest(messages: SerializedMessage[], traces: DependencyTraceResult[]) {
+  protected _updateUnitTest(selected: SerializedMessage[], traces: DependencyTraceResult[]) {
     this.setState({
-      unitTest: generateUnitTest(messages, traces)
+      unitTest: generateUnitTest(selected, traces)
     });
   }
 

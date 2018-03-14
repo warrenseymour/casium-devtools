@@ -6,29 +6,38 @@
  * By importing the common client module, a Client instance is
  * created at `window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__`. An event listener is
  * attached which relays emitted messages over a WebSocket connection.
+ *
+ * The `%PORT%` and `%PID%` placeholders should be replaced with the port number
+ * that WebSocket server is running on and Process ID of the main Electron
+ * process. This replacement should be performed by the Electron HTTP server at
+ * response-time.
  */
-import '../common/client';
+import { install, Message, DependencyTraceMessage, DependencyTraceResultMessage } from '../common/client';
 
-/**
- * `%PORT%` should be replaced with the port number that the WebSocket server is
- * running on; this replacement should be performed when this script is served
- * by the Electron HTTP server.
- */
-const socket = new WebSocket(`ws://localhost:%PORT%`);
+const client = install();
+const clientId = 'Electron:%PID%';
+client.createQueue(clientId);
 
-const onMessage = (message: any) => {
-  socket.send(JSON.stringify({
-    type: 'message',
-    message
-  }));
-}
+const socket = new WebSocket('ws://localhost:%PORT%');
 
 socket.onopen = () => {
-  window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__ &&
-    window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__.on('message', onMessage);
+  client.subscribe(clientId, msg => {
+    socket.send(JSON.stringify(msg));
+  });
 }
 
 socket.onclose = () => {
-  window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__ &&
-    window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__.removeListener('message', onMessage);
+  client.unsubscribe(clientId);
+}
+
+socket.onmessage = (ev) => {
+  const payload: Message = JSON.parse(ev.data);
+
+  if ((payload as DependencyTraceMessage).type === 'dependencyTrace') {
+    return socket.send(JSON.stringify({
+      source: 'CasiumDevToolsClient',
+      type: 'dependencyTraceResult',
+      result: client.dependencyTrace((payload as DependencyTraceMessage).messages)
+    } as DependencyTraceResultMessage));
+  }
 }

@@ -2,9 +2,9 @@ import * as React from 'react';
 import * as sinon from 'sinon';
 import { expect } from 'chai';
 import { shallow } from 'enzyme';
-import { applyTo, without } from 'ramda';
+import { applyTo, merge, without } from 'ramda';
 
-import { App } from './App';
+import { App, Props } from './App';
 import * as util from './util';
 import { Listener, createClientInterface } from './client-interface';
 
@@ -13,8 +13,7 @@ let listeners: Listener[] = [];
 const clientInterface = createClientInterface({
   send: sinon.spy(),
   addListener: fn => listeners = listeners.concat(fn),
-  removeListener: fn => without([fn], listeners),
-  dependencyTrace: () => Promise.resolve({ model: [], message: [], relay: [] })
+  removeListener: fn => without([fn], listeners)
 })
 
 beforeEach(() => {
@@ -23,16 +22,24 @@ beforeEach(() => {
 
 const fireListeners = (msg: any) => listeners.forEach(applyTo(msg));
 
+const mount = (props: Partial<Props> = {}) =>
+  shallow(<App
+    {...merge({
+      clientInterface,
+      connected: true
+    }, props)}
+  />);
+
 context('when a new message is received', () => {
   it('is appended to `state.messages`', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     fireListeners({ type: 'message', message: { id: '0' } });
 
     expect(wrapper.state().messages).to.deep.equal([{ id: '0' }]);
   });
 
   it('sets `state.haltForReplay` to `true` and replays currently selected message', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
 
     wrapper.setState({
       messages: [{ id: '1' }],
@@ -55,7 +62,8 @@ context('when a new message is received', () => {
 
   context('when `state.active.clearOnReload` is `true`', () => {
     it('clears message history and selection, and sets `state.haltForReplay` to `false`', () => {
-      const wrapper = shallow(<App clientInterface={clientInterface} />);
+      const wrapper = mount();
+
       wrapper.setState({
         messages: [{ id: '1' }],
         selected: [{ id: '1' }],
@@ -88,7 +96,8 @@ const messages = [{
 
 context('when a message is clicked', () => {
   it('sets `state.selected` to the message that was clicked', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
+
     wrapper.setState({ messages });
     wrapper.find('.panel-item').at(1).simulate('click', {});
 
@@ -99,7 +108,7 @@ context('when a message is clicked', () => {
 
   context('when time-travel is enabled', () => {
     it('sends a message to the client', () => {
-      const wrapper = shallow(<App clientInterface={clientInterface} />);
+      const wrapper = mount();
       wrapper.setState({
         messages,
         active: {
@@ -119,7 +128,7 @@ context('when a message is clicked', () => {
 
 context('when a message is shift-clicked', () => {
   it('sets `state.selected` to the new selection range', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.setState({ messages });
 
     wrapper.find('.panel-item').at(1).simulate('click', { shiftKey: true });
@@ -167,7 +176,7 @@ context('when a message is shift-clicked', () => {
 
 describe('clear button', () => {
   it('clears messages on click', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.setState({ messages });
 
     wrapper.find('.clear-messages-button').simulate('click', {});
@@ -175,7 +184,7 @@ describe('clear button', () => {
   });
 
   it('toggles `active.clearOnReload` when meta- or ctrl-clicked', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.setState({ messages });
 
     wrapper.find('.clear-messages-button').simulate('click', { metaKey: true });
@@ -190,7 +199,7 @@ describe('clear button', () => {
 
 describe('time travel button', () => {
   it('toggles `state.active.timeTravel` on click', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.find('.time-travel-button').simulate('click');
 
     expect(wrapper.state().active.timeTravel).to.equal(true);
@@ -199,7 +208,7 @@ describe('time travel button', () => {
 
 describe('unit test button', () => {
   it('toggles `state.active.unitTest` on click', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.find('.unit-test-button').simulate('click');
 
     expect(wrapper.state().active.unitTest).to.equal(true);
@@ -212,7 +221,7 @@ describe('download button', () => {
   });
 
   it('downloads a JSON representation of message history on click', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.setState({ messages });
     wrapper.find('.save-msg-button').simulate('click');
 
@@ -238,12 +247,12 @@ describe('download button', () => {
 
 describe('replay button', () => {
   it('is not visible when no messages are selected', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     expect(wrapper.find('.replay-button').exists()).to.equal(false);
   });
 
   it('toggles `state.active.replay` on click', () => {
-    const wrapper = shallow(<App clientInterface={clientInterface} />);
+    const wrapper = mount();
     wrapper.setState({ messages, selected: messages });
     wrapper.find('.replay-button').simulate('click');
 

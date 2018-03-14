@@ -4,14 +4,15 @@ import { concat, contains, equals, head, last, merge, slice, where } from 'ramda
 
 import { download } from './util';
 import { MessageView } from './MessageView';
-import { SerializedMessage } from './client';
-import { ClientInterface, NewMessage } from './client-interface';
+import { SerializedMessage, NewMessage } from './client';
+import { ClientInterface } from './client-interface';
 
 import 'font-awesome/scss/font-awesome.scss';
 import './App.scss';
 
-interface Props {
-  clientInterface: ClientInterface
+export interface Props {
+  clientInterface: ClientInterface;
+  connected: boolean;
 }
 
 interface State {
@@ -130,11 +131,11 @@ export class App extends React.Component<Props, State> {
   }
 
   render() {
-    const { clientInterface } = this.props;
+    const { clientInterface, connected } = this.props;
     const { messages, selected, active } = this.state;
 
     return (
-      <div className="container">
+      <div className={'container' + (connected ? ' container--connected' : ' container--disconnected')}>
         <div className="panel-tools">
           <span style={{ display: 'inline-block', minWidth: '225px' }}>
             <FontAwesome

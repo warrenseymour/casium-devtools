@@ -3,7 +3,7 @@ import { where, equals } from 'ramda';
 
 import { App } from './App';
 import { ClientInterface } from './client-interface';
-import './Panel.scss';
+import { ConnectionOverlay } from './ConnectionOverlay';
 
 interface Props {
   ConnectionInstructions: React.ComponentClass;
@@ -25,18 +25,20 @@ export class Panel extends React.Component<Props, State> {
 
   render() {
     const { ConnectionInstructions, clientInterface } = this.props;
-
-    if (this.state.connected) {
-      return (
-        <App clientInterface={clientInterface} />
-      );
-    }
+    const { connected, lostPreviousConnection } = this.state;
 
     return (
-      <div className="connect">
-        {this._renderDisconnected()}
-        <h2>Waiting for Casium to connect...</h2>
-        <ConnectionInstructions />
+      <div>
+        <App
+          connected={connected}
+          clientInterface={clientInterface}
+        />
+        <ConnectionOverlay
+          visible={!connected}
+          disconnected={lostPreviousConnection}
+        >
+          <ConnectionInstructions />
+        </ConnectionOverlay>
       </div>
     );
   }
@@ -52,13 +54,5 @@ export class Panel extends React.Component<Props, State> {
 
   componentWillUnmount() {
     this._unsub && this._unsub();
-  }
-
-  protected _renderDisconnected() {
-    return this.state.lostPreviousConnection && (
-      <div className="disconnected">
-        Lost connection to the inspected page
-      </div>
-    );
   }
 }

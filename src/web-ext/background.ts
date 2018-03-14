@@ -1,4 +1,4 @@
-import { Message } from '../common/client-interface';
+import { Message } from '../common/client';
 
 /**
  * A mapping of opened Ports, the name of the channel that messages on that Port
@@ -54,11 +54,11 @@ const allReady = () =>
  */
 browser.runtime.onConnect.addListener(port => {
   if (!Object.keys(PORT_MAPPING).includes(port.name)) {
-    console.log(`Client '${port.name} ignored`);
+    console.log(`Port '${port.name}' ignored`);
     return;
   }
 
-  console.log(`Client '${port.name}' connected`);
+  console.log(`%cPort '${port.name}' connected`, 'font-weight: bold; color: #2eb82e;');
   Object.assign(PORT_MAPPING[port.name], { port });
 
   /**
@@ -67,7 +67,11 @@ browser.runtime.onConnect.addListener(port => {
    * the destination port does not exist (ie, it has not connected yet), then
    * queue the message instead.
    */
-  const messageHandler = (message: {}, sender: browser.runtime.Port) => {
+  const messageHandler = (message: any, sender: browser.runtime.Port) => {
+    if (message.source === 'CasiumDevToolsBackgroundScript') {
+      return;
+    }
+
     console.log(`%cMessage FROM '${sender.name}'`, 'font-weight: bold; color: #e6b800;', message);
 
     if (!PORT_MAPPING[sender.name]) {
@@ -78,7 +82,7 @@ browser.runtime.onConnect.addListener(port => {
     const { port: destPort, queue: destQueue } = PORT_MAPPING[dest];
 
     if (!destPort) {
-      console.log('%cMessage Not Relayed: Destination port does not exist - message queued', 'font-weight: bold; color: #cc2900;', message);
+      console.log(`%cMessage Not Relayed: Destination port '${destPort}' does not exist - message queued`, 'font-weight: bold; color: #cc2900;', message);
       destQueue.push(message);
       return;
     }
@@ -94,14 +98,14 @@ browser.runtime.onConnect.addListener(port => {
    * the entry is removed from `PORT_MAPPING`
    */
   port.onDisconnect.addListener(() => {
-    console.log(`%cPort '${port.name}' disconnected`, 'font-weight: bold; color: #cc2900;');
+    console.log(`%cPort '${port.name}' disconnected, broadcasting 'disconnected' message`, 'font-weight: bold; color: #cc2900;');
     (port as any).onMessage.removeListener(messageHandler);
     broadcast({ type: 'disconnected' });
     delete PORT_MAPPING[port.name].port;
   })
 
   if (allReady()) {
-    console.log(`All clients connected, sending 'connected' message`);
+    console.log(`%cAll ports connected, broadcasting 'connected' message`, 'font-weight: bold; color: #2eb82e;');
     broadcast({ type: 'connected' });
   }
 

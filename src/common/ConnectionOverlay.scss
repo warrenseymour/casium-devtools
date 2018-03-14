@@ -1,4 +1,10 @@
-.connect {
+.connection-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+
     display: flex;
     flex-direction: column;
     height: 100vh;
@@ -6,6 +12,7 @@
     justify-content: center;
     font-family: ".SFNSDisplay-Regular", "Helvetica Neue", "Lucida Grande", Ubuntu, Arial, sans-serif;
     color: #666;
+    background: rgba(0, 0, 0, 0.2);
 
     > * {
         max-width: 50%;
@@ -27,4 +34,3 @@
         padding: 4px 6px;
     }
 }
-

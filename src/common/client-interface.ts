@@ -1,49 +1,4 @@
-import { SerializedMessage, DependencyTraceResult } from './client';
-
-/**
- * A ClientInterface implementation should broadcast this message when the DevTools
- * Client and DevTools UI have both connected.
- */
-export type Connected = { type: 'connected' };
-
-/**
- * A ClientInterface implementation should broadcast this message when either the
- * DevTools Client or DevTools UI have disconnected.
- */
-export type Disconnected = {
-  type: 'disconnected'
-};
-
-/**
- * A ClientInterface implementation should send this message to the DevTools UI
- * when the DevTools client receives a new Casium message.
- */
-export type NewMessage = {
-  type: 'message',
-  message: SerializedMessage
-};
-
-/**
- * A ClientInterface implementation should send this message to the DevTools
- * Client when the DevTools UI requests the application state be reset to the
- * result of a specific Message.
- */
-export type TimeTravel = {
-  type: 'timeTravel',
-  to: SerializedMessage
-};
-
-/**
- * Any message sent to/from the Client should be one of the preceeding types,
- * plus a `source` property.
- */
-export type Message = Partial<{ source: string } & (
-  Connected | Disconnected | NewMessage | TimeTravel
-)>;
-
-export type PostedMessage = {
-  data: Message
-}
+import { Message } from './client';
 
 /**
  * A listener function can be a 'predicate' or 'listener' function. Both are
@@ -69,15 +24,12 @@ export type ClientInterface = {
    * called with the message.
    */
   subscribe: (listeners: Listener[][]) => () => void;
-
-  dependencyTrace: (msg: SerializedMessage) => Promise<DependencyTraceResult>;
 }
 
 type CreateClientInterfaceOptions = {
   send: (msg: Message) => void;
   addListener: (listener: Listener) => void;
   removeListener: (listener: Listener) => void;
-  dependencyTrace: (msg: SerializedMessage) => Promise<DependencyTraceResult>;
 }
 
 /**
@@ -86,10 +38,10 @@ type CreateClientInterfaceOptions = {
  * WebExtension and Electron implementation provide their own specific logic
  * inside these functions.
  */
-export const createClientInterface = ({ send, addListener, removeListener, dependencyTrace }: CreateClientInterfaceOptions): ClientInterface => ({
-  send,
-
-  dependencyTrace,
+export const createClientInterface = ({ send, addListener, removeListener }: CreateClientInterfaceOptions): ClientInterface => ({
+  send: msg => {
+    send({ source: 'CasiumDevToolsPanel', ...msg })
+  },
 
   subscribe: subs => {
     const listenerFns = subs.map(([predicate, ...handlers]) => (msg: Message) => {

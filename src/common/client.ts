@@ -1,12 +1,15 @@
-import StateManager from 'casium/dist/runtime/state_manager';
-import ExecContext, { cmdName } from 'casium/dist/runtime/exec_context';
-import { EventEmitter } from 'events';
+import StateManager from 'casium/runtime/state_manager';
+import ExecContext, { cmdName } from 'casium/runtime/exec_context';
 import { Container, GenericObject } from 'casium';
-import { DevToolsClient, NotifyMessage } from 'casium/dist/dev_tools';
-import { contains, filter, flatten, is, map, pipe, when } from 'ramda';
-import { safeStringify, safeParse } from 'casium/dist/util';
+import { Client as DevToolsClient, NotifyMessage } from 'casium/dev_tools';
+import { contains, filter, flatten, is, map, merge, pipe, when } from 'ramda';
+import { safeStringify, safeParse } from 'casium/util';
 
-const serialize = map<GenericObject, SerializedMessage>(pipe(safeStringify, safeParse));
+declare global {
+  interface Window {
+    __CASIUM_DEVTOOLS_GLOBAL_CLIENT__: Client;
+  }
+}
 
 export type SerializedCommand = [string, GenericObject];
 
@@ -29,6 +32,64 @@ export type SerializedMessage = {
 }
 
 /**
+ * A ClientInterface implementation should broadcast this message when the DevTools
+ * Client and DevTools UI have both connected.
+ */
+export type ConnectedMessage = { type: 'connected' };
+
+/**
+ * A ClientInterface implementation should broadcast this message when either the
+ * DevTools Client or DevTools UI have disconnected.
+ */
+export type DisconnectedMessage = { type: 'disconnected' };
+
+/**
+ * A ClientInterface implementation should send this message to the DevTools UI
+ * when the DevTools client receives a new Casium message.
+ */
+export type NewMessage = {
+  type: 'message',
+  message: SerializedMessage
+};
+
+/**
+ * A ClientInterface implementation should send this message to the DevTools
+ * Client when the DevTools UI requests the application state be reset to the
+ * result of a specific Message.
+ */
+export type TimeTravelMessage = {
+  type: 'timeTravel',
+  to: SerializedMessage
+};
+
+/**
+ * A ClientInterface implementation should send this message to the DevTools
+ * Client when the DevTools UI requests a dependency trace for a specific
+ * Message.
+ */
+export type DependencyTraceMessage = {
+  type: 'dependencyTrace',
+  messages: SerializedMessage[]
+};
+
+/**
+ * A ClientInterface implementation should send this message to the DevTools UI
+ * when the DevTools client has completed a dependency trace.
+ */
+export type DependencyTraceResultMessage = {
+  type: 'dependencyTraceResult',
+  result: DependencyTraceResult[]
+};
+
+/**
+ * Any message sent to/from the Client should be one of the preceeding types,
+ * plus a `source` property.
+ */
+export type Message = Partial<{ source: string } & (
+  ConnectedMessage | DisconnectedMessage | NewMessage | TimeTravelMessage | DependencyTraceMessage | DependencyTraceResult
+)>;
+
+/**
  * Contains the paths on `model`, `message` and `relay` that were accessed by an
  * Updater function
  */
@@ -37,6 +98,10 @@ export type DependencyTraceResult = {
   message: string[][];
   relay: string[][];
 }
+
+const serialize = map<GenericObject, SerializedMessage>(pipe(safeStringify, safeParse));
+
+const setSource = merge({ source: 'CasiumDevToolsClient' });
 
 export const appendUniquePath = (paths: string[][]) => when<string[], void>(
   path => !contains(path, paths),
@@ -75,19 +140,23 @@ export const deepGetProxy = <T extends GenericObject>(obj: T, onRead: (path: str
  * application being inspected and the DevTools UI. This interface is exposed as
  * `window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__` in the context of inspected page.
  *
- * A DevTools panel can be notified of new messages by listening to the
- * 'message' event.
+ * A DevTools UI instance can subscribe to new messages using the `subscribe`
+ * method, and release this subscription using `unsubscribe`. Multiple
+ * subscribers should distinguish themselves providing a unique ID, making it
+ * possible (although rare) for multiple DevTools instances to interact with the
+ * same Client.
  *
  * The Client also implements a simple message queueing mechanism; if there are
- * no event listeners attached when a message is emitted, it is appended to
- * `_queue`. When the first event listener is attached, it will be called with
- * each message present in `_queue` and the queue will then be cleared.
+ * no subscribers attached when a message is emitted, it is appended to
+ * `_queue`. When the subscriber is attached, it will be called with each
+ * message present in `_queue` and the queue will then be cleared.
  */
-export class Client extends EventEmitter implements DevToolsClient {
+export class Client implements DevToolsClient {
   protected _session = Date.now() + Math.random().toString(36).substr(2);
   protected _messageCounter = 0;
 
-  protected _queue: { [type: string]: any[] } = {};
+  protected _queues: { [id: string]: Message[] } = {};
+  protected _subscribers: { [id: string]: (msg: Message) => void } = {};
 
   public contexts: { [id: string]: ExecContext<any> } = {};
   public root?: StateManager;
@@ -120,33 +189,10 @@ export class Client extends EventEmitter implements DevToolsClient {
 
     this.contexts[context.id] = context;
     container && (this.containers.includes(container) || this.containers.push(container));
-    this.queue('message', serialized);
-  }
-
-  public queue(event: string, msg: any) {
-    if (this.listenerCount(event) > 0) {
-      this.emit(event, msg);
-      return;
-    }
-
-    if (!this._queue[event]) {
-      this._queue[event] = [];
-    }
-
-    this._queue[event].push(msg);
-  }
-
-  public on(event: string | symbol, listener: (...args: any[]) => void) {
-    if (this._queue[event]) {
-      this._queue[event].forEach(msg => listener(msg));
-      this._queue[event] = [];
-    }
-
-    return super.on(event, listener);
-  }
-
-  public addListener(event: string | symbol, listener: (...args: any[]) => void) {
-    return this.on(event as any, listener);
+    this._emit({
+      type: 'message',
+      message: serialized
+    });
   }
 
   /**
@@ -154,24 +200,46 @@ export class Client extends EventEmitter implements DevToolsClient {
    */
   public intercept(stateManager: StateManager) {
     this.root = stateManager;
+    return stateManager;
   }
 
-  public dependencyTrace(msg: SerializedMessage) {
-    const updater = this.getUpdater(msg);
+  public createQueue(id: string) {
+    this._queues[id] = [];
+  }
 
-    const result: DependencyTraceResult = {
-      model: [],
-      message: [],
-      relay: []
-    };
+  public subscribe(id: string, fn: (msg: Message) => void) {
+    this._subscribers[id] = fn;
 
-    const model = deepGetProxy(msg.prev, appendUniquePath(result.model));
-    const message = deepGetProxy(msg.data || {}, appendUniquePath(result.message));
-    const relay = deepGetProxy(msg.relay, appendUniquePath(result.relay));
+    const queue = this._queues[id];
+    if (queue && queue.length) {
+      queue.forEach(msg => fn(setSource(msg)));
+      this.createQueue(id);
+    }
+  }
 
-    updater(model, message, relay);
+  public unsubscribe(id: string) {
+    delete this._subscribers[id];
+    this.createQueue(id);
+  }
 
-    return result;
+  public dependencyTrace(messages: SerializedMessage[]) {
+    return messages.map(msg => {
+      const updater = this.getUpdater(msg);
+
+      const result: DependencyTraceResult = {
+        model: [],
+        message: [],
+        relay: []
+      };
+
+      const model = deepGetProxy(msg.prev, appendUniquePath(result.model));
+      const message = deepGetProxy(msg.data || {}, appendUniquePath(result.message));
+      const relay = deepGetProxy(msg.relay, appendUniquePath(result.relay));
+
+      updater(model, message, relay);
+
+      return result;
+    })
   }
 
   /**
@@ -206,6 +274,30 @@ export class Client extends EventEmitter implements DevToolsClient {
   protected _nextId() {
     return ++this._messageCounter;
   }
+
+  protected _emit(message: Message) {
+    Object.keys(this._queues).forEach(id => {
+      const subscriber = this._subscribers[id];
+
+      if (!subscriber) {
+        return this._queues[id].push(message);
+      }
+
+      subscriber(setSource(message));
+    })
+  }
 }
 
-typeof window !== 'undefined' && (window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__ = new Client());
+export const install = () => {
+  if (typeof window === undefined) {
+    throw Error('Client may not be installed in this context; window does not exist');
+  }
+
+  if (window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__) {
+    return window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__;
+  }
+
+  const client = new Client();
+  window.__CASIUM_DEVTOOLS_GLOBAL_CLIENT__ = client;
+  return client;
+}

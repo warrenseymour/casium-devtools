@@ -6,13 +6,17 @@ html, body {
 }
 
 #app, .container {
-  height: 100%;
+  height: 100vh;
   width: 100%;
+}
+
+.container--disconnected {
+  filter: blur(5px);
 }
 
 .panel-container {
   display: flex;
-  height: calc(100% - 22px);
+  height: calc(100% - 26px);
 }
 
 .loading {
