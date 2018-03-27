@@ -18,7 +18,7 @@ module.exports = [
     plugins: config.plugins.concat([
       new CopyWebpackPlugin([
         { from: './src/common/icon.png', flatten: true },
-        { from: './src/electron/panel.html', flatten: true }
+        { from: './src/common/panel.html', flatten: true }
       ])
     ])
   }),

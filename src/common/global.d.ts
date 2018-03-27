@@ -1,4 +1,4 @@
-import { INSTRUMENTER_KEY, Instrumenter, SerializedMessage } from './instrumenter';
+import { INSTRUMENTER_KEY, Instrumenter } from './instrumenter';
 
 export type Listener = (msg: SerializedMessage) => any;
 

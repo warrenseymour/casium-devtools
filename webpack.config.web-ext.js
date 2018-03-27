@@ -10,7 +10,6 @@ module.exports = merge({
     'injected-script': './src/web-ext/injected-script.ts',
     background: './src/web-ext/background.ts',
     devtools: './src/web-ext/devtools.ts',
-    messaging: './src/web-ext/messaging.ts',
     panel: './src/web-ext/panel.ts'
   },
 
@@ -27,7 +26,7 @@ module.exports = merge({
       { from: './src/common/*.png', flatten: true },
       { from: './src/web-ext/manifest.json', flatten: true },
       { from: './src/web-ext/devtools.html', flatten: true },
-      { from: './src/web-ext/panel.html', flatten: true },
+      { from: './src/common/panel.html', flatten: true },
     ])),
   ]))
 });
