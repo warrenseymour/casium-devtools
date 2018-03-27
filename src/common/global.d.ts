@@ -1,5 +1,6 @@
-import { INSTRUMENTER_KEY, Instrumenter } from './instrumenter';
-import { Listener } from './messaging';
+import { INSTRUMENTER_KEY, Instrumenter, SerializedMessage } from './instrumenter';
+
+export type Listener = (msg: SerializedMessage) => any;
 
 declare global {
   interface Window {

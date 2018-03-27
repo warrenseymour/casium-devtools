@@ -1,4 +1,5 @@
-import { SerializedMessage } from './instrumenter';
+import { SerializedMessage } from '../common/instrumenter';
+import { Listener } from '../common/global';
 
 // This creates and maintains the communication channel between
 // the inspectedPage and the dev tools panel.
@@ -9,8 +10,6 @@ import { SerializedMessage } from './instrumenter';
 //   content: [String|Path to script|Object], // data to be passed through
 //   tabId: [Automatically added]
 // }
-
-export type Listener = (msg: SerializedMessage) => any;
 
 window.LISTENERS = []
 

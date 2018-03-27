@@ -4,8 +4,8 @@
  * `window.postMessage` to relay messages to the Content Script.
  */
 
-import { Instrumenter } from './instrumenter';
-import { fromMatches } from './util';
+import { Instrumenter } from '../common/instrumenter';
+import { fromMatches } from '../common/util';
 
 const isAllowedSender = fromMatches([
   'CasiumDevToolsBackgroundScript',

@@ -5,14 +5,14 @@
 ## Installation & Development
 
  - `yarn deps`
- - `yarn build`, or `yarn watch`, to auto-reload on saved changes
+ - `yarn build:web-ext`, or `yarn watch:web-ext`, to auto-reload on saved changes
 
 ### Chrome
 
  - Open [`chrome://extensions`](chrome://extensions)
  - Make sure `[✔] Developer Mode` is ✔'d
  - Click `Load unpacked extension...`
- - Select the `dist` directory
+ - Select the `dist/web-ext` directory
  - If DevTools is open, close and reopen it
 
  - Open DevTools in separate window, navigate to `Casium` tab
@@ -25,7 +25,7 @@
 - Open [`about:debugging`](about:debugging)
 - Make sure `[✔] Enable add-on debugging` is ✔'d
 - Click `Load Temporary Add-on`
-- Select the `dist` directory
+- Select the `dist/web-ext` directory
 - If the Inspector is open, close and reopen it
 
 - In the entry that appears for 'Casium Developer Tools', click the `Debug` button
@@ -42,13 +42,13 @@
  - [x] Toggle next state / prev state / diff view
  - [x] Message timestamps, toggle relative / absolute
  - [x] Clear on reload / preserve log button
+ - [x] Import / replay log
+ - [x] Better formatting for object output in generated unit tests
  - [ ] Replay last / replay selected
- - [ ] Import / replay log
  - [ ] Compare runs
  - [ ] Tab isolation
  - [ ] Preserve state across reloads
  - [ ] Do a better job surfacing errors
- - [ ] Better formatting for object output in generated unit tests
  - [ ] Resizable panels
  - [ ] Remote pairing
  - [ ] Remote control

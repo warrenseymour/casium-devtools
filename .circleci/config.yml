@@ -34,8 +34,8 @@ jobs:
           command: cc-test-reporter after-build --exit-code $?
 
       - run:
-          name: Build
-          command: yarn build
+          name: Build WebExtension
+          command: yarn build:web-ext
 
       - persist_to_workspace:
           root: /root/project

@@ -1,34 +1,27 @@
 const { resolve } = require('path');
+const { filter: _filter, identity, mergeDeepRight } = require('ramda');
 const ExtractTextPlugin = require('extract-text-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
-const ChromeExtensionReloader = require('webpack-chrome-extension-reloader');
 const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
 
-const isProd = process.env.NODE_ENV === 'production';
+const filter = _filter(identity);
+
+const isDev = process.env.NODE_ENV === 'development';
+const isProd = !isDev;
 
 const extractSass = new ExtractTextPlugin({
   filename: 'style.css'
 });
 
-module.exports = {
-  entry: {
-    'content-script': './src/content-script.ts',
-    'injected-script': './src/injected-script.ts',
-    'background': './src/background.ts',
-    'devtools': './src/devtools.ts',
-    'panel': './src/panel.ts',
-    'messaging': './src/messaging.ts'
+const config = {
+  devtool: isDev ? 'source-map' : false,
+
+  output: {
+    filename: '[name].js'
   },
 
   resolve: {
     extensions: ['.ts', '.tsx', '.js', '.jsx']
-  },
-
-  devtool: isProd ? false : 'source-map',
-
-  output: {
-    path: resolve(__dirname, './dist'),
-    filename: '[name].js'
   },
 
   module: {
@@ -66,17 +59,16 @@ module.exports = {
     }]
   },
 
-  plugins: [
+  plugins: filter([
     extractSass,
-    isProd ? null : new ChromeExtensionReloader(),
-    isProd ? new UglifyJsPlugin() : null,
-    isProd ? null : new CopyWebpackPlugin([{ from: './node_modules/webextension-polyfill/dist/browser-polyfill.min.js.map', flatten: true }]),
-    new CopyWebpackPlugin([
-      { from: './src/*.png', flatten: true },
-      { from: './node_modules/webextension-polyfill/dist/browser-polyfill.min.js', flatten: true },
-      { from: './src/manifest.json', flatten: true },
-      { from: './src/devtools.html', flatten: true },
-      { from: './src/panel.html', flatten: true },
-    ]),
-  ].filter(plugin => !!plugin)
+    isProd && new UglifyJsPlugin(),
+  ])
+};
+
+module.exports = {
+  isDev,
+  isProd,
+  filter,
+  config,
+  merge: mergeDeepRight(config)
 };

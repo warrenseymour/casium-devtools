@@ -4,8 +4,9 @@
   "description": "Casium DevTools",
   "main": "",
   "scripts": {
-    "watch": "NODE_ENV=development webpack --watch",
-    "build": "yarn clean && NODE_ENV=production webpack",
+    "watch:web-ext": "NODE_ENV=development yarn build:web-ext --watch",
+    "build:web-ext": "webpack --config webpack.config.web-ext.js",
+
     "test": "nyc mocha",
     "clean": "rm -rf dist",
     "deps": "yarn && cd node_modules/react-inspector && yarn && yarn build",

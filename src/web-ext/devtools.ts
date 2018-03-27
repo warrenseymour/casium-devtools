@@ -1,4 +1,4 @@
-import { INSTRUMENTER_KEY } from './instrumenter';
+import { INSTRUMENTER_KEY } from '../common/instrumenter';
 
 let panelCreated = false;
 

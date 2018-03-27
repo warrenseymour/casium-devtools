@@ -1,4 +1,4 @@
-import { fromMatches } from './util';
+import { fromMatches } from '../common/util';
 
 /**
  * Inject a Script into the inspected window containing an Instrumenter
