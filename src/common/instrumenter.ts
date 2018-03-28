@@ -250,8 +250,8 @@ export class Instrumenter {
 
       send: (msg: InboundMessage) => {
         if ('selected' in msg) {
-          const sel = msg.selected;
-          const newState = set(lensPath(sel.path), sel.next, sel.prev);
+          const { path, next, prev } = msg.selected;
+          const newState = set(lensPath(path), next, prev);
 
           return withStateManager(stateManager => stateManager.set(newState));
         }
