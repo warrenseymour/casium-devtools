@@ -1,0 +1,10 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs"
+  },
+  "files": [
+    "src/common/global.d.ts",
+    "src/electron/main.ts"
+  ]
+}
