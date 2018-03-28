@@ -5,9 +5,12 @@
 ## Installation & Development
 
  - `yarn deps`
+
+### Web Extension
+
  - `yarn build:web-ext`, or `yarn watch:web-ext`, to auto-reload on saved changes
 
-### Chrome
+#### Chrome
 
  - Open [`chrome://extensions`](chrome://extensions)
  - Make sure `[✔] Developer Mode` is ✔'d
@@ -20,7 +23,7 @@
  - With Meta-DevTools window selected, `⌘ + R` to reload
  - You may need to also reload the inspected page
 
-### Firefox
+#### Firefox
 
 - Open [`about:debugging`](about:debugging)
 - Make sure `[✔] Enable add-on debugging` is ✔'d
@@ -30,6 +33,13 @@
 
 - In the entry that appears for 'Casium Developer Tools', click the `Debug` button
 - Accept the remote debugging request
+
+### Electron
+
+- `yarn build:electron` and `yarn electron` to build and run the Electron version of the DevTools.
+- `yarn watch:electron` to restart the Main Process and/or Renderer on change.
+- Add the script tag `<script src="http://localhost:8081"></script>` to the page
+  you want to inspect, before the root Casium container is mounted.
 
 ## Roadmap
 

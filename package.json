@@ -6,7 +6,13 @@
   "scripts": {
     "watch:web-ext": "NODE_ENV=development yarn build:web-ext --watch",
     "build:web-ext": "webpack --config webpack.config.web-ext.js",
-
+    "watch:electron:main": "nodemon -w src/electron/main.ts -w src/common/server.ts -x \"yarn build:electron:main && yarn electron\"",
+    "build:electron:main": "tsc -p tsconfig.electron.json",
+    "watch:electron:renderer": "NODE_ENV=development yarn build:electron:renderer --watch",
+    "build:electron:renderer": "webpack --config webpack.config.electron.js",
+    "watch:electron": "concurrently \"yarn watch:electron:main\" \"yarn watch:electron:renderer\" -n main,renderer",
+    "build:electron": "yarn build:electron:main && yarn build:electron:renderer",
+    "electron": "electron dist/electron/main.js",
     "test": "nyc mocha",
     "clean": "rm -rf dist",
     "deps": "yarn && cd node_modules/react-inspector && yarn && yarn build",
