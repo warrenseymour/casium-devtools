@@ -1,9 +1,10 @@
 import { onMessage, withStateManager, OnMessageCallback, StateManagerCallback } from 'casium/instrumentation';
 import { safeStringify, safeParse } from 'casium/util';
-import { GenericObject } from 'casium/core';
+import { GenericObject, Container } from 'casium/core';
 import StateManager from 'casium/runtime/state_manager';
 import ExecContext, { cmdName } from 'casium/runtime/exec_context';
-import { filter, flatten, is, lensPath, map, pipe, set } from 'ramda';
+import { filter, flatten, identity, is, lensPath, map, pipe, set } from 'ramda';
+import { MessageConstructor } from 'casium/message';
 
 export const INSTRUMENTER_KEY = '__CASIUM_DEV_TOOLS_INSTRUMENTER__';
 
@@ -13,7 +14,7 @@ export const INSTRUMENTER_KEY = '__CASIUM_DEV_TOOLS_INSTRUMENTER__';
  */
 export type BackendState = {
   connected: boolean;
-  onMessage: (msg: SerializedMessage) => void;
+  onMessage: (msg: OutboundMessage) => void;
   queue: SerializedMessage[];
 }
 
@@ -31,7 +32,7 @@ export type Backend = (spec: {
   connect: () => void;
   disconnect: () => void;
   send: (msg: any) => void;
-}) => (msg: SerializedMessage) => void;
+}) => (msg: OutboundMessage) => void;
 
 export type SerializedCommand = [string, GenericObject];
 
@@ -50,14 +51,108 @@ export type SerializedMessage = {
   commands?: SerializedCommand[];
 }
 
-export type InboundMessage = {
-  selected: SerializedMessage
+/**
+ * Inbound messages that require an associated response should contain a
+ * `requestId` property to correct association.
+ */
+export type RequestId = { requestId: number };
+
+/**
+ * Sent and received by Backends regarding connection state.
+ *
+ * Currently, only `initialized` is supported, which represents that the
+ * DevTools panel UI is ready to process queued messages.
+ */
+export type ConnectionState = { state: string };
+
+/**
+ * Sent by a Backend when using the 'time travel' feature, which should set the
+ * application state to that represented by the 'selected' Message.
+ */
+export type TimeTravel = { selected: SerializedMessage };
+
+/**
+ * Sent by a Backend to manually construct and dispatch a Message using
+ * string-based identifiers (mandated by traversing network and browser context
+ * boundaries).
+ */
+export type DispatchMessage = {
+  dispatch: {
+    // The `name` property of the container to dispatch a Message to
+    name: string;
+    // The `name` property of the Message constructor to use
+    message: string;
+    // Data to pass to the Message constructor
+    data: GenericObject;
+  }
+}
+
+/**
+ * Sent by a Backend to request a list of Container names that handle a Message
+ * with a specific name
+ */
+export type ContainersHandlingRequest = { containersHandling: string; }
+
+/**
+ * Sent by a Backend to request a list of Message names that begin with a given
+ * substring
+ */
+export type MessageNamesRequest = { messageNames: string; }
+
+/**
+ * Messages received FROM a Backend
+ */
+export type InboundMessage =
+  ConnectionState |
+  TimeTravel |
+  DispatchMessage |
+  RequestId & ContainersHandlingRequest |
+  RequestId & MessageNamesRequest;
+
+/**
+ * Sent to a Backend in response to a `ContainersHandlingRequest`
+ */
+export type ContainersHandlingResponse = { containers: string[] }
+
+/**
+ * Sent to a Backend in response to a `MessageNamesRequest`.
+ */
+export type MessageNamesResponse = {
+  /**
+   * Hash of query results - keys are full message names that begin with the
+   * requested substring. Value is an array of container names which contain
+   * this message.
+   */
+  messageNames: {
+    [message: string]: string[]
+  }
+}
+
+/**
+ * Messages sent TO a Backend
+ */
+export type OutboundMessage =
+  ConnectionState |
+  SerializedMessage |
+  RequestId & ContainersHandlingResponse |
+  RequestId & MessageNamesResponse
+
+/**
+ * Convenience alias for Execution Contexts which are definitely associated to a
+ * Container
+ */
+export type ContextWithContainer = ExecContext<any> & {
+  container: Container<any>
 }
 
 const serialize = map<GenericObject, GenericObject>(pipe(safeStringify, safeParse)) as any;
 
 const serializeCmds: (cmds: any[]) => SerializedCommand[] =
   pipe(flatten as any, filter(is(Object)), map<any, SerializedCommand[]>(cmd => [cmdName(cmd), cmd.data]));
+
+const findUpdater = (container: Container<any>, name: string) =>
+  Array.from(container.update.keys())
+    .find(ctor => ctor.name === name);
 
 /**
  * The DevTools Instrumenter runs in the same context as the Inspected Page, and
@@ -154,11 +249,41 @@ export class Instrumenter {
       disconnect: () => state.connected = false,
 
       send: (msg: InboundMessage) => {
-        if (msg.selected) {
+        if ('selected' in msg) {
           const sel = msg.selected;
           const newState = set(lensPath(sel.path), sel.next, sel.prev);
+
           return withStateManager(stateManager => stateManager.set(newState));
         }
+
+        if ('dispatch' in msg) {
+          const { name, message, data } = msg.dispatch;
+
+          const context = this.getContainerContext(name);
+          const MessageConstructor = this.getMessageConstructor(context, message);
+
+          return context.dispatch(new MessageConstructor(data));
+        }
+
+        if ('containersHandling' in msg) {
+          return onMessage({
+            requestId: msg.requestId as number,
+            containers: this.containersHandling(msg.containersHandling)
+          });
+        }
+
+        if ('messageNames' in msg) {
+          return onMessage({
+            requestId: msg.requestId as number,
+            messageNames: this.messageNames(msg.messageNames)
+          })
+        }
+
+        if ('state' in msg) {
+          return console.info(`Casium Instrumenter: Backend '${name}' state is '${msg.state}'`);
+        }
+
+        console.error('Invalid message received', msg);
       }
     });
 
@@ -173,6 +298,80 @@ export class Instrumenter {
     onMessage({
       from: 'CasiumDevToolsInstrumenter',
       state: 'initialized'
-    } as any);
+    });
+  }
+
+  /**
+   * Returns an array of Executions Contexts that have a Container associated
+   */
+  public containerContexts() {
+    return Object.keys(this.contexts)
+      .map(id => {
+        const context = this.contexts[id];
+        return context.container ? context : undefined;
+      })
+      .filter(identity) as ContextWithContainer[]
+  }
+
+  /**
+   * Locates the Execution Context that owns a Container with `name`
+   */
+  public getContainerContext(container: string): ExecContext<any> {
+    const match = this.containerContexts()
+      .find(context => context.container.name === container);
+
+    if (!match) {
+      throw Error(`Container '${container}' does not exist`);
+    }
+
+    return match;
+  }
+
+  /**
+   * Locates the constructor function for a Message with `name` that is handled
+   * by a Container owned by Execution Context `context`.
+   */
+  public getMessageConstructor(context: ExecContext<any>, name: string): MessageConstructor {
+    if (!context.container) {
+      throw Error(`Context '${context.id}' does not have a container`);
+    }
+
+    const match = findUpdater(context.container, name);
+    if (!match) {
+      throw Error(`Container '${context.container.name}' does not handle Messages of type '${name}'`);
+    }
+
+    return match;
+  }
+
+  /**
+   * Returns a list of Container names that respond to a Message with `name`
+   */
+  public containersHandling(name: string) {
+    return this.containerContexts()
+      .map(({ container }) => findUpdater(container, name) ? container.name : undefined)
+      .filter(identity) as string[];
+  }
+
+  /**
+   * Returns an array of objects containing Messages that begin with `name` and
+   * the name of the Container that handles them.
+   */
+  public messageNames(name = '') {
+    let result: { [message: string]: string[] } = {};
+
+    this.containerContexts().forEach(({ container }) => {
+      const messages = Array.from(container.update.keys())
+        .filter(ctor => ctor.name.startsWith(name))
+        .map(ctor => ctor.name);
+
+      messages.forEach(message => {
+        result[message] ?
+          result[message].push(container.name) :
+          result[message] = [container.name];
+      });
+    })
+
+    return result;
   }
 }
