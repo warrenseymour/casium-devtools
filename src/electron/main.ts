@@ -11,7 +11,13 @@ if (process.env.NODE_ENV === 'development') {
 
 app
   .on('ready', () => {
-    const mainWindow = new BrowserWindow({ width: 800, height: 600, icon: resolve(__dirname, './icon.png') });
+    const mainWindow = new BrowserWindow({
+      width: 800,
+      height: 600,
+      title: 'Casium Developer Tools',
+      icon: resolve(__dirname, './icon.png')
+    });
+
     mainWindow.loadURL(`file://${__dirname}/panel.html`);
 
     server = new Server({
@@ -37,7 +43,6 @@ app
 
     mainWindow.on('closed', () => {
       server.stop();
-      (mainWindow as any) = undefined;
     });
   })
   .on('window-all-closed', () => {
