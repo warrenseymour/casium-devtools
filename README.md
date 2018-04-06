@@ -40,6 +40,21 @@
 - `yarn watch:electron` to restart the Main Process and/or Renderer on change.
 - Add the script tag `<script src="http://localhost:8081"></script>` to the page
   you want to inspect, before the root Casium container is mounted.
+- Alternatively, to inspect production applications, use the following TamperMonkey script:
+
+```
+// ==UserScript==
+// @name         Casium Developer Tools
+// @run-at       document-start
+// ==/UserScript==
+
+(function() {
+    'use strict';
+    var script = document.createElement('script');
+    script.setAttribute('src','http://localhost:8081');
+    document.head.appendChild(script);
+})();
+```
 
 ## Roadmap
 
